@@ -1,0 +1,47 @@
+{{template "base" .}}
+
+{{define "content"}}
+{{$res := index .Data "values"}}
+<form action="/users/{{with index .Data "id"}}{{.}}{{else}}new{{end}}" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <div class="mb-3">
+        <label for="exampleInputName" class="form-label">Name</label>
+        <input name="userName" class="form-control {{if .Form.Errors.Get "userName"}} is-invalid {{else if .Form.Has "userName"}} is-valid {{end}}"
+            value="{{$res.Name}}" id="exampleInputName" aria-describedby="userNameHelp">
+        {{with .Form.Errors.Get "userName"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div class="mb-3">
+        <label for="exampleInputEmail1" class="form-label">Email address</label>
+        <input name="email" class="form-control {{if .Form.Errors.Get "email"}} is-invalid {{else if .Form.Has "email"}} is-valid {{end}}"
+            value="{{$res.Email}}" id="exampleInputEmail1" aria-describedby="emailHelp">
+        {{with .Form.Errors.Get "email"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div class="mb-3">
+        <label for="exampleInputPassword1" class="form-label">Password</label>
+        <input type="password" name="password" class="form-control {{if .Form.Errors.Get "password"}} is-invalid {{else if .Form.Has "password"}} is-valid {{end}}" value="{{$res.Password}}" id="exampleInputPassword1">
+        {{with .Form.Errors.Get "password"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div class="mb-3">
+        <label for="exampleInputPasswordConfirmation1" class="form-label">Password Confirmation</label>
+        <input type="password" name="passwordConfirmation" class="form-control {{if .Form.Errors.Get "passwordConfirmation"}} is-invalid {{else if .Form.Has "passwordConfirmation"}} is-valid {{end}}" value="{{$res.PasswordConfirmation}}" id="exampleInputPasswordConfirmation1">
+        {{with .Form.Errors.Get "passwordConfirmation"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <button type="submit" class="btn btn-primary">Submit</button>
+</form>
+{{end}}
