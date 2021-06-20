@@ -1,0 +1,103 @@
+{{template "base" .}}
+
+{{define "content"}}
+{{$res := index .Data "values"}}
+<form action="/options" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <div class="mb-3">
+        <label for="exampleInputBusinessName1" class="form-label">Business Name</label>
+        <input name="BusinessName" class="form-control {{if .Form.Errors.Get "BusinessName"}}is-invalid{{end}}" value="{{index $res "BUSINESS_NAME"}}" id="exampleInputBusinessName1"
+            aria-describedby="BusinessNameHelp">
+        {{with .Form.Errors.Get "BusinessName"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div class="mb-3">
+        <label for="Theme" class="form-label">Theme</label>
+        <select id="Theme" name="Theme" class="form-select {{if .Form.Errors.Get "Theme"}}is-invalid{{end}}" aria-label="Default select example">
+            {{range $theme := getThemes}}
+            <option value="{{$theme}}" {{with index $res "THEME"}}{{if eq . $theme }}selected{{end}}{{end}}>
+                {{$theme}}</option>
+                {{end}}
+        </select>
+        {{with .Form.Errors.Get "Theme"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div class="mb-3">
+        <label for="exampleInputFromEmail1" class="form-label">From Email</label>
+        <input name="FromEmail" class="form-control {{if .Form.Errors.Get "FromEmail"}}is-invalid{{end}}" value="{{index $res "FROM_EMAIL"}}" id="exampleInputFromEmail1"
+            aria-describedby="FromEmailHelp">
+        {{with .Form.Errors.Get "FromEmail"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div class="mb-3">
+        <label for="exampleInputSMTPHost1" class="form-label">SMTP Host</label>
+        <input name="SMTPHost" class="form-control {{if .Form.Errors.Get "SMTPHost"}}is-invalid{{end}}" value="{{index $res "SMTP_HOST"}}" id="exampleInputSMTPHost1"
+            aria-describedby="SMTPHostHelp">
+        {{with .Form.Errors.Get "SMTPHost"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div class="mb-3">
+        <label for="exampleInputSMTPPort1" class="form-label">SMTP Port</label>
+        <input name="SMTPPort" class="form-control {{if .Form.Errors.Get "SMTPPort"}}is-invalid{{end}}" value="{{index $res "SMTP_PORT"}}" id="exampleInputSMTPPort1"
+            aria-describedby="SMTPPortHelp">
+        {{with .Form.Errors.Get "SMTPPort"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div class="mb-3">
+        <label for="exampleInputSMTPUsername1" class="form-label">SMTP Username</label>
+        <input name="SMTPUsername" class="form-control {{if .Form.Errors.Get "SMTPUsername"}}is-invalid{{end}}" value="{{index $res "SMTP_USERNAME"}}" id="exampleInputSMTPUsername1"
+            aria-describedby="SMTPUsernameHelp">
+        {{with .Form.Errors.Get "SMTPUsername"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div class="mb-3">
+        <label for="exampleInputSMTPPassword1" class="form-label">SMTP Password</label>
+        <input name="SMTPPassword" class="form-control {{if .Form.Errors.Get "SMTPPassword"}}is-invalid{{end}}" value="{{index $res "SMTP_PASSWORD"}}" id="exampleInputSMTPPassword1"
+            aria-describedby="SMTPPasswordHelp">
+        {{with .Form.Errors.Get "SMTPPassword"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div class="mb-3">
+        <label for="SMTPSecurity" class="form-label">SMTP Security</label>
+        <select id="SMTPSecurity" name="SMTPSecurity" class="form-select {{if .Form.Errors.Get "SMTPSecurity"}}is-invalid{{end}}" aria-label="Default select example">
+            <option value="none" {{with index $res "SMTP_SECURITY"}}{{if eq . "none" }}selected{{end}}{{end}}>
+                None</option>
+            <option value="ssl" {{with index $res "SMTP_SECURITY"}}{{if eq . "ssl" }}selected{{end}}{{end}}>SSL
+            </option>
+            <option value="tls" {{with index $res "SMTP_SECURITY"}}{{if eq . "tls" }}selected{{end}}{{end}}>
+                TLS</option>
+        </select>
+        {{with .Form.Errors.Get "SMTPSecurity"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <button type="submit" class="btn btn-primary">Submit</button>
+</form>
+{{end}}
+
+{{define "js"}}
+
+{{end}}

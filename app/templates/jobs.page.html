@@ -1,0 +1,173 @@
+{{template "base" .}}
+
+{{define "content"}}
+{{$jobs := index .Data "jobs"}}
+{{$backup := index .Data "backup"}}
+<input type="hidden" id="csrf_token" name="csrf_token" value="{{.CSRFToken}}">
+<div class="card border-dark mb-3">
+  <div class="card-header d-flex justify-content-between"><span>Backup details</span><a href="/backups/{{$backup.ID}}"
+      class="card-link">Edit</a></div>
+  <div class="card-body text-dark">
+    <ul class="list-group list-group-flush">
+      <li class="list-group-item">Name: {{$backup.Name}}</li>
+      <li class="list-group-item">Timezone: {{$backup.Timezone}}</li>
+      <li class="list-group-item">Type: {{if eq $backup.Type "object"}}Files In Deployment or StatefulSet{{else if eq $backup.Type "pod"}}Files In Pod{{else}}MySQL Database{{end}}</li>
+      <li class="list-group-item">Bucket: {{$backup.Bucket}}</li>
+    </ul>
+  </div>
+</div>
+<table class="table table-hover align-middle">
+  <thead>
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Date</th>
+      <th scope="col">S3 File</th>
+      <th scope="col">Status</th>
+      <th scope="col"></th>
+    </tr>
+  </thead>
+  <tbody x-data="tBody()">
+    {{range $jobs}}
+    <template x-if="!deletedItems.includes({{.ID}})">
+      <tr>
+        <th scope="row">{{.ID}}</th>
+        <td>{{humanTimezonedDate .CreatedAt $backup.Timezone}}</td>
+        <td><a href="#" title="Click to download" @click.prevent="download({{.ID}})"><code>{{.File}}</code></a></td>
+        <td>{{if eq .Status "success"}}<span class="badge rounded-pill bg-success">Success</span>{{else}}<span class="badge rounded-pill bg-danger">Fail</span>{{end}}</td>
+        <td>
+          {{if eq .Status "success"}}
+          <button class="btn btn-success btn-sm" type="button" x-on:click="restoreNow({{.ID}})"
+            :disabled="restoringItems.includes({{.ID}})"
+            x-text="restoringItems.includes({{.ID}}) ? 'In progress...' : 'Restore'"
+            x-html="restoringItems.includes({{.ID}}) ? spinner : 'Restore Now'"></button>
+          {{end}}
+          <button class="btn btn-danger btn-sm" @click="deleteJob({{.ID}})">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-x-lg"
+              viewBox="0 0 16 16">
+              <path
+                d="M1.293 1.293a1 1 0 0 1 1.414 0L8 6.586l5.293-5.293a1 1 0 1 1 1.414 1.414L9.414 8l5.293 5.293a1 1 0 0 1-1.414 1.414L8 9.414l-5.293 5.293a1 1 0 0 1-1.414-1.414L6.586 8 1.293 2.707a1 1 0 0 1 0-1.414z" />
+            </svg>
+          </button>
+        </td>
+      </tr>
+    </template>
+    {{end}}
+  </tbody>
+</table>
+{{end}}
+{{define "js"}}
+{{$backup := index .Data "backup"}}
+<script>
+  function tBody() {
+    return {
+      spinner: '<span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span> In progress...',
+      restoringItems: [],
+      deletedItems: [],
+      download(id) {
+        fetch('/json/jobs/download/'+id+'/{{$backup.ID}}', {
+          method: "post",
+          headers: {
+            'Content-Type': 'application/json',
+            'csrf-token': document.getElementById('csrf_token').value,
+          },
+        })
+          .then(response => {
+            return response.json();
+          })
+          .then(data => {
+            if (data.data) {
+              window.location.href = data.data
+            }
+          })
+      },
+      getRunningJobs() {
+        fetch('/json/jobs/running/{{$backup.ID}}', {
+          method: "post",
+          headers: {
+            'Content-Type': 'application/json',
+            'csrf-token': document.getElementById('csrf_token').value,
+          },
+        })
+          .then(response => {
+            return response.json();
+          })
+          .then(data => {
+            if (data.data) {
+              this.restoringItems = data.data
+            }
+          })
+      },
+      init() {
+        this.getRunningJobs()
+        setInterval(() => {
+          this.getRunningJobs()
+        }, 3000);
+      },
+      restoreNow(id) {
+        this.restoringItems.push(id);
+        fetch('/json/jobs/restore/' + id, {
+          method: "post",
+          headers: {
+            'Content-Type': 'application/json',
+            'csrf-token': document.getElementById('csrf_token').value,
+          },
+        })
+          .then(response => {
+            if (response.ok) {
+              Swal.fire(
+                'Queued!',
+                'The restoration process started successfully, it is happening on the server so feel free to close or leave your browser, you will be notified by email if the restoration process succeed or failed.',
+                'success'
+              )
+            } else {
+              Swal.fire(
+                'Oops...',
+                'Something went wrong!',
+                'error'
+              )
+            }
+            return response.json();
+          })
+          .then(data => {
+          })
+      },
+      deleteJob(id) {
+        Swal.fire({
+          title: 'Are you sure?',
+          text: "You won't be able to revert this!",
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#3085d6',
+          cancelButtonColor: '#d33',
+          confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            fetch('/json/jobs/' + id, {
+              method: "delete",
+              headers: {
+                'Content-Type': 'application/json',
+                'csrf-token': document.getElementById('csrf_token').value,
+              },
+            })
+              .then(response => {
+                if (!response.ok) {
+                  throw new Error("HTTP status " + response.status);
+                }
+                this.deletedItems.push(id);
+                return response.json();
+              })
+              .then(data => {
+              })
+
+            Swal.fire(
+              'Deleted!',
+              'The job has been deleted.',
+              'success'
+            )
+          }
+        })
+      },
+    }
+  }
+</script>
+{{end}}

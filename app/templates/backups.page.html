@@ -1,0 +1,160 @@
+{{template "base" .}}
+
+{{define "content"}}
+{{$backups := index .Data "backups"}}
+{{$jobs := index .Data "jobs"}}
+<input type="hidden" id="csrf_token" name="csrf_token" value="{{.CSRFToken}}">
+<table class="table table-hover align-middle">
+  <thead>
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Backup</th>
+      <th scope="col">Frequency</th>
+      <th scope="col">Timezone</th>
+      <th scope="col">Last Backup At</th>
+      <th scope="col">Status</th>
+      <th scope="col"></th>
+    </tr>
+  </thead>
+  <tbody x-data="tBody()">
+    {{range $backups}}
+    {{$job := getBackupJob . $jobs}}
+    <template x-if="!deletedItems.includes({{.ID}})">
+      <tr>
+        <th scope="row">{{.ID}}</th>
+        <td><a href="/jobs/backups/{{.ID}}">{{.Name}}</a></td>
+        <td>{{if eq .Frequency "custom"}}Custom (<code>{{.CustomFrequency}}</code>){{else}}{{humanFrequency .}}{{end}}</td>
+        {{$tz := .Timezone}}
+        <td>{{.Timezone}}</td>
+        <td x-text="getTime('{{with $job.Backup}}{{humanTimezonedDate $job.CreatedAt $tz}}{{end}}')"></td>
+        <td>{{with $job.Backup}}{{if eq $job.Status "success"}}<span class="badge rounded-pill bg-success">Success</span>{{else}}<span class="badge rounded-pill bg-danger">Fail</span>{{end}}{{end}}</td>
+        <td>
+          <button class="btn btn-success btn-sm" type="button" x-on:click="backupNow({{.ID}})"
+            :disabled="backups.includes({{.ID}})" x-text="backups.includes({{.ID}}) ? 'In progress...' : 'Backup'"
+            x-html="backups.includes({{.ID}}) ? spinner : 'Backup Now'"></button>
+          <a href="/backups/{{.ID}}" class="btn btn-secondary btn-sm" role="button">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-pencil-fill"
+              viewBox="0 0 16 16">
+              <path
+                d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708l-3-3zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207l6.5-6.5zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.499.499 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11l.178-.178z">
+              </path>
+            </svg>
+          </a>
+          <button class="btn btn-danger btn-sm" @click="deleteBackup({{.ID}})">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-x-lg"
+              viewBox="0 0 16 16">
+              <path
+                d="M1.293 1.293a1 1 0 0 1 1.414 0L8 6.586l5.293-5.293a1 1 0 1 1 1.414 1.414L9.414 8l5.293 5.293a1 1 0 0 1-1.414 1.414L8 9.414l-5.293 5.293a1 1 0 0 1-1.414-1.414L6.586 8 1.293 2.707a1 1 0 0 1 0-1.414z" />
+            </svg>
+          </button>
+        </td>
+      </tr>
+    </template>
+    {{end}}
+  </tbody>
+</table>
+{{end}}
+{{define "js"}}
+<script>
+  function tBody() {
+    return {
+      spinner: '<span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span> In progress...',
+      deletedItems: [],
+      backups: [],
+      getTime(d){
+        if (d) {
+          return moment(new Date(d), "YYYYMMDD").fromNow();
+        }
+        return ""
+      },
+      getRunningJobs() {
+        fetch('/json/jobs/running/backups', {
+          method: "post",
+          headers: {
+            'Content-Type': 'application/json',
+            'csrf-token': document.getElementById('csrf_token').value,
+          },
+        })
+          .then(response => {
+            return response.json();
+          })
+          .then(data => {
+            if (data.data) {
+              this.backups = data.data
+            }
+          })
+      },
+      init() {
+        this.getRunningJobs()
+        setInterval(() => {
+          this.getRunningJobs()
+        }, 3000);
+      },
+      backupNow(id) {
+        this.backups.push(id);
+        fetch('/json/jobs/backup/' + id, {
+          method: "post",
+          headers: {
+            'Content-Type': 'application/json',
+            'csrf-token': document.getElementById('csrf_token').value,
+          },
+        })
+          .then(response => {
+            if (response.ok) {
+              Swal.fire(
+                'Queued!',
+                'The backup process started successfully, it is happening on the server so feel free to close or leave your browser, you will be notified by email if the backup process succeed or failed.',
+                'success'
+              )
+            } else {
+              Swal.fire(
+                'Oops...',
+                'Something went wrong!',
+                'error'
+              )
+            }
+            return response.json();
+          })
+          .then(data => {
+          })
+      },
+      deleteBackup(id) {
+        Swal.fire({
+          title: 'Are you sure?',
+          text: "You won't be able to revert this!",
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#3085d6',
+          cancelButtonColor: '#d33',
+          confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            fetch('/json/backups/' + id, {
+              method: "delete",
+              headers: {
+                'Content-Type': 'application/json',
+                'csrf-token': document.getElementById('csrf_token').value,
+              },
+            })
+              .then(response => {
+                if (!response.ok) {
+                  throw new Error("HTTP status " + response.status);
+                }
+                this.deletedItems.push(id);
+                return response.json();
+              })
+              .then(data => {
+              })
+
+            Swal.fire(
+              'Deleted!',
+              'The backup has been deleted.',
+              'success'
+            )
+          }
+        })
+      },
+    }
+  }
+</script>
+{{end}}
