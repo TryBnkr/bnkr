@@ -1,5 +1,9 @@
 {{template "base" .}}
 
+{{define "head"}}
+<script src="/static/js/cronstrue.min.js"></script>
+{{end}}
+
 {{define "content"}}
 {{$backups := index .Data "backups"}}
 {{$jobs := index .Data "jobs"}}
@@ -23,7 +27,7 @@
       <tr>
         <th scope="row">{{.ID}}</th>
         <td><a href="/jobs/backups/{{.ID}}">{{.Name}}</a></td>
-        <td>{{if eq .Frequency "custom"}}Custom (<code>{{.CustomFrequency}}</code>){{else}}{{humanFrequency .}}{{end}}</td>
+        {{if eq .Frequency "custom"}}<td>Custom (<code>{{.CustomFrequency}}</code>)</td>{{else}}<td x-text="cronstrue.toString('{{constructCron .}}')"></td>{{end}}
         {{$tz := .Timezone}}
         <td>{{.Timezone}}</td>
         <td x-text="getTime('{{with $job.Backup}}{{humanTimezonedDate $job.CreatedAt $tz}}{{end}}')"></td>

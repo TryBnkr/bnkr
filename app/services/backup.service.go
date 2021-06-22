@@ -91,7 +91,7 @@ func (m *Repository) UpdateOrInsertCron(id int, typ string) error {
 		return err
 	}
 
-	cron := utils.ConstructCron(backup)
+	cron := render.ConstructCron(backup)
 	cronId, _ := m.App.Cron.AddFunc("CRON_TZ="+backup.Timezone+" "+cron, func() { m.CreateNewJob(backup, false) })
 
 	m.App.CronIds[int(backup.ID)] = cronId
