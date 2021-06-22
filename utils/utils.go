@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"regexp"
 	"runtime/debug"
-	"strings"
 
 	"github.com/MohammedAl-Mahdawi/bnkr/app/dal"
 	"github.com/MohammedAl-Mahdawi/bnkr/app/types"
@@ -72,29 +71,6 @@ func GetTimes() []string {
 	}
 
 	return t
-}
-
-func ConstructCron(b *types.NewBackupDTO) string {
-	cron := b.Frequency
-	if b.Frequency == "custom" {
-		cron = b.CustomFrequency
-	} else {
-		s := strings.Split(b.Time, ":")
-		switch b.Frequency {
-		case "@yearly":
-			cron = s[1] + " " + s[0] + " " + string(b.DayOfMonth) + " " + string(b.Month) + " *"
-		case "@monthly":
-			cron = s[1] + " " + s[0] + " " + string(b.DayOfMonth) + " * *"
-		case "@weekly":
-			cron = s[1] + " " + s[0] + " * * " + string(b.DayOfWeek)
-		case "@daily":
-			cron = s[1] + " " + s[0] + " * * *"
-		case "@hourly":
-			cron = "@hourly"
-		}
-	}
-
-	return cron
 }
 
 func GetTimeZones() []string {

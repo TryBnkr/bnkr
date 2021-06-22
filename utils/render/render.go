@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 
+	"github.com/MohammedAl-Mahdawi/bnkr/app/types"
 	at "github.com/MohammedAl-Mahdawi/bnkr/app/types"
 	"github.com/MohammedAl-Mahdawi/bnkr/config"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils"
@@ -22,6 +25,7 @@ var functions = template.FuncMap{
 	"humanDate":          HumanDate,
 	"timezonedDate":      TimezonedDate,
 	"humanTimezonedDate": HumanTimezonedDate,
+	"constructCron":      ConstructCron,
 	"dayName":            DayName,
 	"monthName":          MonthName,
 	"formatDate":         FormatDate,
@@ -118,6 +122,29 @@ func GetBackupJob(b *at.NewBackupDTO, jobs []at.SmallJob) at.SmallJob {
 		Status:    "",
 		CreatedAt: time.Time{},
 	}
+}
+
+func ConstructCron(b *types.NewBackupDTO) string {
+	cron := b.Frequency
+	if b.Frequency == "custom" {
+		cron = b.CustomFrequency
+	} else {
+		s := strings.Split(b.Time, ":")
+		switch b.Frequency {
+		case "@yearly":
+			cron = s[1] + " " + s[0] + " " + strconv.Itoa(b.DayOfMonth) + " " + strconv.Itoa(b.Month) + " *"
+		case "@monthly":
+			cron = s[1] + " " + s[0] + " " + strconv.Itoa(b.DayOfMonth) + " * *"
+		case "@weekly":
+			cron = s[1] + " " + s[0] + " * * " + strconv.Itoa(b.DayOfWeek)
+		case "@daily":
+			cron = s[1] + " " + s[0] + " * * *"
+		case "@hourly":
+			cron = "@hourly"
+		}
+	}
+
+	return cron
 }
 
 // AddDefaultData adds data for all templates

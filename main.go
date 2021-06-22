@@ -49,7 +49,7 @@ func main() {
 	session.Cookie.Secure = isProduction
 
 	app.Session = session
-	app.Version = "1.0.0"
+	app.Version = "1.0.1"
 
 	app.Cron = cron.New()
 
@@ -122,7 +122,7 @@ func runJobs() {
 
 	for _, b := range *backups {
 		rBackup := b
-		cron := utils.ConstructCron(&rBackup)
+		cron := render.ConstructCron(&rBackup)
 		cronId, _ := app.Cron.AddFunc("CRON_TZ="+rBackup.Timezone+" "+cron, func() { services.Repo.CreateNewJob(&rBackup, false) })
 		app.CronIds[int(rBackup.ID)] = cronId
 	}
