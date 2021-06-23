@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/asaskevich/govalidator"
+	"github.com/robfig/cron/v3"
 )
 
 // Form creates a custom form struct, embeds a url.Values object
@@ -60,6 +61,16 @@ func (f *Form) MinLength(field string, length int) bool {
 func (f *Form) IsEmail(field string) {
 	if !govalidator.IsEmail(f.Get(field)) {
 		f.Errors.Add(field, "Invalid email address")
+	}
+}
+
+func (f *Form) IsCron(field string) {
+	cc := cron.New()
+	id, _ := cc.AddFunc("CRON_TZ=UTC " + f.Get(field), nil)
+	v := cc.Entry(id).Valid()
+	cc.Remove(id)
+	if !v {
+		f.Errors.Add(field, "Invalid cron expression")
 	}
 }
 

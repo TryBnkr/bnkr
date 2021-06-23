@@ -191,6 +191,10 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 
 	form.Required(args...)
 
+	if frequency == "custom" {
+		form.IsCron("customFrequency")
+	}
+
 	data := make(map[string]interface{})
 	data["values"] = values
 

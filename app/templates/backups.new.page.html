@@ -1,5 +1,9 @@
 {{template "base" .}}
 
+{{define "head"}}
+<script src="/static/js/cronstrue.min.js"></script>
+{{end}}
+
 {{define "content"}}
 {{$res := index .Data "values"}}
 {{$timezones := index .Data "timezones"}}
@@ -56,7 +60,7 @@
     </div>
     <div x-show="frequency=='custom'" class="mb-3 customFrequency">
         <label for="exampleInputCustomFrequency1" class="form-label">Custom Frequency</label>
-        <input name="customFrequency" class="form-control {{if .Form.Errors.Get "customFrequency"}} is-invalid {{else if
+        <input x-model="customFrequency" name="customFrequency" class="form-control {{if .Form.Errors.Get "customFrequency"}} is-invalid {{else if
             .Form.Has "customFrequency" }} is-valid {{end}}" value="{{$res.CustomFrequency}}" id="exampleInputCustomFrequency1"
             aria-describedby="customFrequencyHelp">
         {{with .Form.Errors.Get "customFrequency"}}
@@ -64,7 +68,7 @@
             {{.}}
         </div>
         {{end}}
-        <div id="customFrequencyHelp" class="form-text">Standard Cron expression.
+        <div id="customFrequencyHelp" class="form-text" x-text="textCron()">
         </div>
     </div>
     <div x-show="frequency=='@weekly'" class="mb-3">
@@ -329,6 +333,14 @@
 <script>
     function newBackup(){
         return {
+            customFrequency: '{{with $res.Frequency}}{{if eq . "custom" }}{{$res.CustomFrequency}}{{end}}{{end}}',
+            textCron(){
+                try {
+                    return cronstrue.toString(this.customFrequency);
+                } catch (error) {
+                    return 'Standard Cron expression.';
+                }
+            },
             type: '{{with $res.Type}}{{.}}{{else}}db{{end}}',
             frequency:  '{{with $res.Frequency}}{{.}}{{else}}daily{{end}}'
         }

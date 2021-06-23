@@ -27,7 +27,7 @@
       <tr>
         <th scope="row">{{.ID}}</th>
         <td><a href="/jobs/backups/{{.ID}}">{{.Name}}</a></td>
-        {{if eq .Frequency "custom"}}<td>Custom (<code>{{.CustomFrequency}}</code>)</td>{{else}}<td x-text="cronstrue.toString('{{constructCron .}}')"></td>{{end}}
+        {{if eq .Frequency "custom"}}<td>Custom (<code :title="cronstrue.toString('{{.CustomFrequency}}')">{{.CustomFrequency}}</code>)</td>{{else}}<td x-text="cronstrue.toString('{{constructCron .}}')"></td>{{end}}
         {{$tz := .Timezone}}
         <td>{{.Timezone}}</td>
         <td x-text="getTime('{{with $job.Backup}}{{humanTimezonedDate $job.CreatedAt $tz}}{{end}}')"></td>
