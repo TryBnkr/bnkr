@@ -10,12 +10,15 @@ import (
 )
 
 func listenForQueues() {
-	go func() {
-		for {
-			job := <-app.Queue
-			queueJob(job)
-		}
-	}()
+	// Run pool of 5 queue workers so we can run 5 jobs at the same time
+	for i := 0; i < 5; i++ {
+		go func() {
+			for {
+				job := <-app.Queue
+				queueJob(job)
+			}
+		}()
+	}
 }
 
 func queueJob(q types.NewQueueDTO) {

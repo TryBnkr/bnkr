@@ -49,7 +49,7 @@ func main() {
 	session.Cookie.Secure = isProduction
 
 	app.Session = session
-	app.Version = "1.0.2"
+	app.Version = "1.0.3"
 
 	app.Cron = cron.New()
 
@@ -65,7 +65,7 @@ func main() {
 	app.TemplateCache = tc
 
 	// Mail setup
-	mailChan := make(chan types.MailData)
+	mailChan := make(chan types.MailData, 100)
 	app.MailChan = mailChan
 
 	defer close(app.MailChan)
@@ -74,7 +74,7 @@ func main() {
 	listenForMail()
 
 	// Queue setup
-	queueChan := make(chan types.NewQueueDTO)
+	queueChan := make(chan types.NewQueueDTO, 100)
 	app.Queue = queueChan
 
 	defer close(app.Queue)

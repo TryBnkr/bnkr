@@ -15,12 +15,15 @@ import (
 )
 
 func listenForMail() {
-	go func() {
-		for {
-			msg := <-app.MailChan
-			sendMsg(msg)
-		}
-	}()
+	// Run pool of 5 email workers which allows 5 emails to be sent at the same time
+	for i := 0; i < 5; i++ {
+		go func() {
+			for {
+				msg := <-app.MailChan
+				sendMsg(msg)
+			}
+		}()
+	}
 }
 
 func sendMsg(m types.MailData) {
