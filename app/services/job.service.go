@@ -429,9 +429,9 @@ func (m *Repository) PrepareBackup(b *types.NewBackupDTO, backupName string, s3F
 	}
 
 	if b.Type == "db" {
-		msg.Subject = "Database backup failed!"
+		msg.Subject = fmt.Sprintf("Database backup %s failed!", b.Name)
 	} else {
-		msg.Subject = "Files backup failed!"
+		msg.Subject = fmt.Sprintf("Files backup %s failed!", b.Name)
 	}
 
 	backupPath := dir + "/" + backupName
