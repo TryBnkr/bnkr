@@ -9,7 +9,7 @@ type NewBackupDTO struct {
 	Type             string
 	Bucket           string
 	Region           string
-	DayOfWeek        int
+	DayOfWeek        *int
 	DayOfMonth       int
 	Month            int
 	Time             string

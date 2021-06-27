@@ -157,7 +157,7 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 		PodLabel:         podLabel,
 		PodName:          podName,
 		FilesPath:        filesPath,
-		DayOfWeek:        dayOfWeek,
+		DayOfWeek:        &dayOfWeek,
 		DayOfMonth:       dayOfMonth,
 		Month:            month,
 		S3AccessKey:      accessKey,

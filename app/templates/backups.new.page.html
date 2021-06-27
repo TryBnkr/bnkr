@@ -76,7 +76,7 @@
         <select id="backup-dayOfWeek" name="dayOfWeek" class="form-select {{if .Form.Errors.Get "dayOfWeek"}} is-invalid {{else if
             .Form.Has "dayOfWeek" }} is-valid {{end}}" aria-label="Default select example">
             {{range $dayOfWeek := iterate 7}}
-            <option value="{{$dayOfWeek}}" {{with $res.DayOfWeek}}{{if eq $res.DayOfWeek $dayOfWeek }}selected{{end}}{{end}}>{{dayName $dayOfWeek}}</option>
+            <option value="{{$dayOfWeek}}" {{with $res.DayOfWeek}}{{if eq (Deref $res.DayOfWeek) $dayOfWeek }}selected{{end}}{{end}}>{{dayName $dayOfWeek}}</option>
             {{end}}
         </select>
         {{with .Form.Errors.Get "dayOfWeek"}}
