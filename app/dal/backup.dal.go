@@ -23,7 +23,7 @@ type Backup struct {
 	DbPort           string
 	PodLabel         string
 	PodName          string
-	DayOfWeek        int
+	DayOfWeek        *int
 	DayOfMonth       int
 	Month            int
 	Time             string
