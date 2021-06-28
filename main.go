@@ -53,8 +53,10 @@ func main() {
 
 	app.Cron = cron.New()
 
-	database.Connect()
-	database.Migrate(&dal.User{}, &dal.Backup{}, &dal.Option{}, &dal.Job{}, &dal.Queue{})
+	dsn := "postgres://"+os.Getenv("DB_USER")+":"+os.Getenv("DB_PASSWORD")+"@"+os.Getenv("DB_HOST")+":"+os.Getenv("DB_PORT")+"/"+os.Getenv("DB_NAME")+"?sslmode="+os.Getenv("DB_SSLMODE")+"&TimeZone="+os.Getenv("DB_TIMEZONE")
+	database.Migrate(dsn)
+	database.Connect(dsn)
+	// TODO close db connection
 
 	tc, err := render.CreateTemplateCache()
 	if err != nil {
