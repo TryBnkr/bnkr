@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/MohammedAl-Mahdawi/bnkr/app/dal"
 	"github.com/MohammedAl-Mahdawi/bnkr/app/types"
@@ -19,7 +20,7 @@ import (
 // GetUsers returns the users list
 func (m *Repository) GetUsers(w http.ResponseWriter, r *http.Request) {
 	users := &[]types.NewUserDTO{}
-	if err := dal.FindAllUsers(&users).Error; err != nil {
+	if err := dal.FindAllUsers(&users); err != nil {
 		utils.ServerError(w, err)
 		return
 	}
@@ -37,7 +38,7 @@ func (m *Repository) GetNewUser(w http.ResponseWriter, r *http.Request) {
 	if id != 0 {
 		user := &types.NewUserDTO{}
 
-		if err := dal.FindUsersById(&user, id).Error; err != nil {
+		if err := dal.FindUserById(&user, id); err != nil {
 			utils.ServerError(w, err)
 			return
 		}
@@ -57,7 +58,7 @@ func (m *Repository) GetNewUser(w http.ResponseWriter, r *http.Request) {
 
 func (m *Repository) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
-	if res := dal.DeleteUser(id); res.RowsAffected == 0 {
+	if _, err := dal.DeleteUser(id); err != nil {
 		utils.ServerError(w, errors.New("unable to delete user"))
 		return
 	}
@@ -124,13 +125,17 @@ func (m *Repository) PostNewUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if id != 0 {
-		if err := dal.UpdateUser(id, d).Error; err != nil {
+		d.ID = id
+		d.UpdatedAt = time.Now()
+		if _, err := dal.UpdateUser(d); err != nil {
 			utils.ServerError(w, err)
 			return
 		}
 		m.App.Session.Put(r.Context(), "flash", "User updated")
 	} else {
-		if err := dal.CreateUser(d).Error; err != nil {
+		d.UpdatedAt = time.Now()
+		d.CreatedAt = time.Now()
+		if _, err := dal.CreateUser(d); err != nil {
 			if utils.IsDuplicateKeyError(err) {
 				form.Errors.Add("email", "User already exist!")
 				render.Template(w, r, "users.new.page.html", &types.TemplateData{

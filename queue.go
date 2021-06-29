@@ -28,7 +28,7 @@ func queueJob(q types.NewQueueDTO) {
 	}
 
 	queue := &dal.Queue{}
-	result := dal.FindQueueTypeAndObject(&queue, typ, q.ID)
+	result := dal.FindQueueByTypeAndObject(&queue, typ, q.ID)
 
 	// If this operation already queued then do nothing
 	if !(errors.Is(result.Error, gorm.ErrRecordNotFound)) {
@@ -78,13 +78,13 @@ func queueJob(q types.NewQueueDTO) {
 	}
 }
 
-func CreateQueue(t string, o *uint) (*dal.Queue, error) {
+func CreateQueue(t string, o int) (*dal.Queue, error) {
 	q := &dal.Queue{
 		Type:   t,
 		Object: o,
 	}
 
-	if err := dal.CreateQueue(q).Error; err != nil {
+	if _, err := dal.CreateQueue(q); err != nil {
 		return nil, err
 	}
 
@@ -92,7 +92,7 @@ func CreateQueue(t string, o *uint) (*dal.Queue, error) {
 }
 
 func DeleteQueue(id *uint) error {
-	if res := dal.DeleteQueue(id); res.RowsAffected == 0 {
+	if _, err := dal.DeleteQueue(id); err != nil {
 		return errors.New("unable to delete queue")
 	}
 

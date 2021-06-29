@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/gob"
 	"errors"
 	"flag"
@@ -26,7 +27,6 @@ import (
 	"github.com/alexedwards/scs/v2"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/robfig/cron/v3"
-	"gorm.io/gorm"
 )
 
 var app config.AppConfig
@@ -134,10 +134,10 @@ func runJobs() {
 
 func setup() {
 	// Check if any user exists, if no user exists then create new one.
-	result := dal.FindUser(&struct{ ID string }{})
+	err := dal.FindAllUsers(&struct{ ID string }{})
 
 	// If no user exist
-	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+	if errors.Is(err, sql.ErrNoRows) {
 		user := &dal.User{
 			Name:     os.Getenv("USERNAME"),
 			Password: password.Generate(os.Getenv("USERPASSWORD")),
@@ -145,7 +145,7 @@ func setup() {
 		}
 
 		// Create a user, if error return
-		if err := dal.CreateUser(user); err.Error != nil {
+		if _, err := dal.CreateUser(user); err != nil {
 			panic(err)
 		}
 
