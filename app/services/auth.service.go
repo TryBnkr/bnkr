@@ -82,7 +82,7 @@ func (m *Repository) PostLogin(w http.ResponseWriter, r *http.Request) {
 	// Try to log the user in
 	u := &types.UserResponse{}
 
-	err2 := dal.FindUserByEmail(u, email).Error
+	err2 := dal.FindUserByEmail(u, email)
 
 	if errors.Is(err2, gorm.ErrRecordNotFound) {
 		m.App.Session.Put(r.Context(), "error", "The email address or password you entered is incorrect, please try again.")

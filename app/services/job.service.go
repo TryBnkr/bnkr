@@ -131,7 +131,7 @@ func (m *Repository) GetRunningJobs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	queues := &[]dal.Queue{}
-	if err := dal.FindQueuesByObjectsIdsAndType(&queues, jobsIds, "job", "created_at desc").Error; err != nil {
+	if err := dal.FindQueuesByObjectsIdsAndType(&queues, jobsIds, "job", "created_at desc"); err != nil {
 		utils.ServerError(w, err)
 		return
 	}
@@ -162,7 +162,7 @@ func (m *Repository) GetRunningBackups(w http.ResponseWriter, r *http.Request) {
 	}
 
 	queues := &[]dal.Queue{}
-	if err := dal.FindQueuesByObjectsIdsAndType(&queues, backupsIds, "backup", "created_at desc").Error; err != nil {
+	if err := dal.FindQueuesByObjectsIdsAndType(&queues, backupsIds, "backup", "created_at desc"); err != nil {
 		utils.ServerError(w, err)
 		return
 	}

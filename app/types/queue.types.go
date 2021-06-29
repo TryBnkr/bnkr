@@ -1,6 +1,6 @@
 package types
 
 type NewQueueDTO struct {
-	ID      uint
+	ID      int
 	Process string
 }

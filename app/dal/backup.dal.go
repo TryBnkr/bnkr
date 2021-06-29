@@ -58,8 +58,7 @@ func FindAllBackups(dest interface{}) error {
 }
 
 func DeleteBackup(backupIden interface{}) (sql.Result, error) {
-	result, err := database.DB.Exec("delete from backups where id=$1", backupIden)
-	return result, err
+	return database.DB.Exec("delete from backups where id=$1", backupIden)
 }
 
 func UpdateBackup(data interface{}) (sql.Result, error) {
