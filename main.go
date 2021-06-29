@@ -53,7 +53,7 @@ func main() {
 
 	app.Cron = cron.New()
 
-	dsn := "postgres://"+os.Getenv("DB_USER")+":"+os.Getenv("DB_PASSWORD")+"@"+os.Getenv("DB_HOST")+":"+os.Getenv("DB_PORT")+"/"+os.Getenv("DB_NAME")+"?sslmode="+os.Getenv("DB_SSLMODE")+"&TimeZone="+os.Getenv("DB_TIMEZONE")
+	dsn := "postgres://" + os.Getenv("DB_USER") + ":" + os.Getenv("DB_PASSWORD") + "@" + os.Getenv("DB_HOST") + ":" + os.Getenv("DB_PORT") + "/" + os.Getenv("DB_NAME") + "?sslmode=" + os.Getenv("DB_SSLMODE") + "&TimeZone=" + os.Getenv("DB_TIMEZONE")
 	database.Migrate(dsn)
 	database.Connect(dsn)
 	// TODO close db connection
@@ -118,7 +118,7 @@ func main() {
 
 func runJobs() {
 	backups := &[]types.NewBackupDTO{}
-	if err := dal.FindAllBackups(&backups).Error; err != nil {
+	if err := dal.FindAllBackups(&backups); err != nil {
 		panic(err)
 	}
 
@@ -155,7 +155,7 @@ func setup() {
 			Value: app.Version,
 		}
 
-		if err := dal.CreateOption(o); err.Error != nil {
+		if _, err := dal.CreateOption(o); err != nil {
 			panic(err)
 		}
 	}

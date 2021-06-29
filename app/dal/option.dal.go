@@ -1,52 +1,33 @@
 package dal
 
 import (
-	"github.com/MohammedAl-Mahdawi/bnkr/config/database"
+	"database/sql"
+	"time"
 
-	"gorm.io/gorm"
+	"github.com/MohammedAl-Mahdawi/bnkr/config/database"
 )
 
 // Option struct defines the Option Model
 type Option struct {
-	gorm.Model
-	Name  string `gorm:"uniqueIndex;not null"`
-	Value string
+	ID        int       `db:"id"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
+	Name      string    `db:"name"`
+	Value     string    `db:"value"`
 }
 
 // CreateOption create a option entry in the option's table
-func CreateOption(option *Option) *gorm.DB {
-	return database.DB.Create(option)
+func CreateOption(option *Option) (sql.Result, error) {
+	result, err := database.DB.NamedExec(`INSERT INTO options (created_at, updated_at, name, value)
+	VALUES (:created_at, :updated_at, :name, :value)`, *option)
+
+	return result, err
 }
 
-// FindOption finds a option with given condition
-func FindOption(dest interface{}, conds ...interface{}) *gorm.DB {
-	return database.DB.Model(&Option{}).Take(dest, conds...)
+func FindOptionByName(dest interface{}, optionName interface{}) error {
+	return database.DB.Get(dest, "SELECT * FROM options WHERE name=$1", optionName)
 }
 
-// FindOptionByUser finds a option with given option and user identifier
-func FindOptionByUser(dest interface{}, optionIden interface{}, userIden interface{}) *gorm.DB {
-	return FindOption(dest, "id = ? AND user = ?", optionIden, userIden)
-}
-
-// FindOptionsByUser finds the options with user's identifier given
-func FindOptionsByUser(dest interface{}, userIden interface{}) *gorm.DB {
-	return database.DB.Model(&Option{}).Find(dest, "user = ?", userIden)
-}
-
-func FindOptionsByName(dest interface{}, optionName interface{}) *gorm.DB {
-	return database.DB.Model(&Option{}).Find(dest, "name = ?", optionName)
-}
-
-// DeleteOption deletes a option from options' table with the given option and user identifier
-func DeleteOption(optionIden interface{}, userIden interface{}) *gorm.DB {
-	return database.DB.Unscoped().Delete(&Option{}, "id = ? AND user = ?", optionIden, userIden)
-}
-
-// UpdateOption allows to update the option with the given optionID and userID
-func UpdateOption(optionIden interface{}, userIden interface{}, data interface{}) *gorm.DB {
-	return database.DB.Model(&Option{}).Where("id = ? AND user = ?", optionIden, userIden).Updates(data)
-}
-
-func FindAllOptions(dest interface{}) *gorm.DB {
-	return database.DB.Model(&Option{}).Find(dest)
+func FindAllOptions(dest interface{}) error {
+	return database.DB.Select(dest, "SELECT * FROM options ORDER BY id ASC")
 }

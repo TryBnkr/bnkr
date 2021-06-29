@@ -1,69 +1,43 @@
 package dal
 
 import (
-	"github.com/MohammedAl-Mahdawi/bnkr/config/database"
+	"database/sql"
+	"time"
 
-	"gorm.io/gorm"
+	"github.com/MohammedAl-Mahdawi/bnkr/config/database"
 )
 
 // Job struct defines the Job Model
 type Job struct {
-	gorm.Model
-	File   string
-	Status string
-	Backup *uint `gorm:"not null" gorm:"index"`
-	// this is a pointer because int == 0,
+	ID        int       `db:"id"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
+	File      string    `db:"file"`
+	Status    string    `db:"status"`
+	Backup    int       `db:"backup"`
 }
 
 // CreateJob create a job entry in the job's table
-func CreateJob(job *Job) *gorm.DB {
-	return database.DB.Create(&job)
+func CreateJob(job *Job) (sql.Result, error) {
+	result, err := database.DB.NamedExec(`INSERT INTO jobs (created_at, updated_at, file, status, backup)
+	VALUES (:created_at, :updated_at, :file, :status, :backup)`, *job)
+
+	return result, err
 }
 
-// FindJob finds a job with given condition
-func FindJob(dest interface{}, conds ...interface{}) *gorm.DB {
-	return database.DB.Model(&Job{}).Take(dest, conds...)
+func FindJobsByBackup(dest interface{}, backupIden interface{}, order string) error {
+	return database.DB.Get(dest, "SELECT * FROM jobs WHERE backup=$1 ORDER BY "+order, backupIden)
 }
 
-// FindJobByUser finds a job with given job and user identifier
-func FindJobByUser(dest interface{}, jobIden interface{}, userIden interface{}) *gorm.DB {
-	return FindJob(dest, "id = ? AND user = ?", jobIden, userIden)
+func FindJobsIDByBackup(dest interface{}, backupIden interface{}, order string) error {
+	return database.DB.Get(dest, "SELECT id FROM jobs WHERE backup=$1 ORDER BY "+order, backupIden)
 }
 
-// FindJobsByUser finds the jobs with user's identifier given
-func FindJobsByUser(dest interface{}, userIden interface{}) *gorm.DB {
-	return database.DB.Model(&Job{}).Find(dest, "user = ?", userIden)
+func FindJobById(dest interface{}, jobIden interface{}) error {
+	return database.DB.Get(dest, "SELECT * FROM jobs WHERE id=$1", jobIden)
 }
 
-func FindJobsByBackup(dest interface{}, backupIden interface{}, order interface{}) *gorm.DB {
-	return database.DB.Model(&Job{}).Order(order).Find(dest, "backup = ?", backupIden)
-}
-
-func FindJobsIDByBackup(dest interface{}, backupIden interface{}, order interface{}) *gorm.DB {
-	return database.DB.Model(&Job{}).Select("id").Order(order).Find(dest, "backup = ?", backupIden)
-}
-
-func FindJobsById(dest interface{}, jobIden interface{}) *gorm.DB {
-	return database.DB.Model(&Job{}).Find(dest, "id = ?", jobIden)
-}
-
-func FindAllJobs(dest interface{}) *gorm.DB {
-	return database.DB.Model(&Job{}).Find(dest)
-}
-
-// DeleteJob deletes a job from jobs' table with the given job and user identifier
-// func DeleteJob(jobIden interface{}, userIden interface{}) *gorm.DB {
-// 	return database.DB.Unscoped().Delete(&Job{}, "id = ? AND user = ?", jobIden, userIden)
-// }
-func DeleteJob(jobIden interface{}) *gorm.DB {
-	return database.DB.Unscoped().Delete(&Job{}, "id = ?", jobIden)
-}
-
-// UpdateJob allows to update the job with the given jobID and userID
-func UpdateUserJob(jobIden interface{}, userIden interface{}, data interface{}) *gorm.DB {
-	return database.DB.Model(&Job{}).Where("id = ? AND user = ?", jobIden, userIden).Updates(data)
-}
-
-func UpdateJob(jobIden interface{}, data interface{}) *gorm.DB {
-	return database.DB.Model(&Job{}).Where("id = ?", jobIden).Updates(data)
+func DeleteJob(jobIden interface{}) (sql.Result, error) {
+	result, err := database.DB.Exec("delete from jobs where id=$1", jobIden)
+	return result, err
 }

@@ -91,13 +91,13 @@ func (m *Repository) DownloadFile(w http.ResponseWriter, r *http.Request) {
 	bid, _ := strconv.Atoi(chi.URLParam(r, "bid"))
 
 	job := &types.NewJobDTO{}
-	if err := dal.FindJobsById(&job, jid).Error; err != nil {
+	if err := dal.FindJobById(&job, jid); err != nil {
 		utils.ServerError(w, err)
 		return
 	}
 
 	backup := &types.NewBackupDTO{}
-	if err := dal.FindBackupsById(&backup, bid).Error; err != nil {
+	if err := dal.FindBackupById(&backup, bid); err != nil {
 		utils.ServerError(w, err)
 		return
 	}
@@ -120,7 +120,7 @@ func (m *Repository) GetRunningJobs(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
 
 	jobs := &[]types.NewJobDTO{}
-	if err := dal.FindJobsIDByBackup(&jobs, id, "created_at desc").Error; err != nil {
+	if err := dal.FindJobsIDByBackup(&jobs, id, "created_at desc"); err != nil {
 		utils.ServerError(w, err)
 		return
 	}
@@ -151,7 +151,7 @@ func (m *Repository) GetRunningJobs(w http.ResponseWriter, r *http.Request) {
 
 func (m *Repository) GetRunningBackups(w http.ResponseWriter, r *http.Request) {
 	backups := &[]types.NewBackupDTO{}
-	if err := dal.FindAllBackups(&backups).Error; err != nil {
+	if err := dal.FindAllBackups(&backups); err != nil {
 		utils.ServerError(w, err)
 		return
 	}
@@ -184,13 +184,13 @@ func (m *Repository) GetJobsByBackup(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
 
 	backup := &types.NewBackupDTO{}
-	if err := dal.FindBackupsById(&backup, id).Error; err != nil {
+	if err := dal.FindBackupById(&backup, id); err != nil {
 		utils.ServerError(w, err)
 		return
 	}
 
 	jobs := &[]types.NewJobDTO{}
-	if err := dal.FindJobsByBackup(&jobs, id, "created_at desc").Error; err != nil {
+	if err := dal.FindJobsByBackup(&jobs, id, "created_at desc"); err != nil {
 		utils.ServerError(w, err)
 		return
 	}
@@ -209,7 +209,7 @@ func (m *Repository) GetNewJob(w http.ResponseWriter, r *http.Request) {
 	if id != 0 {
 		job := &types.NewJobDTO{}
 
-		if err := dal.FindJobsById(&job, id).Error; err != nil {
+		if err := dal.FindJobById(&job, id); err != nil {
 			utils.ServerError(w, err)
 			return
 		}
@@ -227,13 +227,13 @@ func (m *Repository) DeleteJob(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
 
 	job := &types.NewJobDTO{}
-	if err := dal.FindJobsById(&job, id).Error; err != nil {
+	if err := dal.FindJobById(&job, id); err != nil {
 		utils.ServerError(w, err)
 		return
 	}
 
 	backup := &types.NewBackupDTO{}
-	if err := dal.FindBackupsById(&backup, job.Backup).Error; err != nil {
+	if err := dal.FindBackupById(&backup, job.Backup); err != nil {
 		utils.ServerError(w, err)
 		return
 	}
@@ -245,7 +245,7 @@ func (m *Repository) DeleteJob(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if res := dal.DeleteJob(id); res.RowsAffected == 0 {
+	if _, err := dal.DeleteJob(id); err != nil {
 		utils.ServerError(w, errors.New("unable to delete job"))
 		return
 	}
@@ -296,7 +296,7 @@ func (m *Repository) DeleteS3Object(b *types.NewBackupDTO, j *types.NewJobDTO) e
 func (m *Repository) DeleteExtraBackups(b *types.NewBackupDTO) error {
 	jobs := &[]types.NewJobDTO{}
 
-	if err := dal.FindJobsByBackup(&jobs, b.ID, "created_at asc").Error; err != nil {
+	if err := dal.FindJobsByBackup(&jobs, b.ID, "created_at asc"); err != nil {
 		return err
 	}
 
@@ -313,7 +313,7 @@ func (m *Repository) DeleteExtraBackups(b *types.NewBackupDTO) error {
 					return err
 				}
 			}
-			if res := dal.DeleteJob(j.ID); res.RowsAffected == 0 {
+			if _, err := dal.DeleteJob(j.ID); err != nil {
 				return errors.New("unable to delete job")
 			}
 		}
@@ -652,8 +652,8 @@ func (m *Repository) SaveJob(file string, status string, b *types.NewBackupDTO) 
 		Backup: &b.ID,
 	}
 
-	if result := dal.CreateJob(o); result.Error != nil {
-		return nil, result.Error
+	if _, err := dal.CreateJob(o); err != nil {
+		return nil, err
 	}
 
 	return o, nil

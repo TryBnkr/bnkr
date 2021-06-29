@@ -39,14 +39,14 @@ func queueJob(q types.NewQueueDTO) {
 
 	if q.Process == "restore" {
 		job := &types.NewJobDTO{}
-		if err := dal.FindJobsById(&job, q.ID).Error; err != nil {
+		if err := dal.FindJobById(&job, q.ID); err != nil {
 			// TODO send mail here & handle error
 			DeleteQueue(&que.ID)
 			return
 		}
 
 		backup := &types.NewBackupDTO{}
-		if err := dal.FindBackupsById(&backup, job.Backup).Error; err != nil {
+		if err := dal.FindBackupById(&backup, job.Backup); err != nil {
 			// TODO send mail here & handle error
 			DeleteQueue(&que.ID)
 			return
@@ -62,7 +62,7 @@ func queueJob(q types.NewQueueDTO) {
 	} else {
 		backup := &types.NewBackupDTO{}
 
-		if err := dal.FindBackupsById(&backup, q.ID).Error; err != nil {
+		if err := dal.FindBackupById(&backup, q.ID); err != nil {
 			DeleteQueue(&que.ID)
 			return
 		}
