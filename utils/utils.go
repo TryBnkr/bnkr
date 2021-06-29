@@ -534,7 +534,7 @@ func IsDuplicateKeyError(err error) bool {
 
 func GetOptionValue(o string) string {
 	option := &types.NewOptionDTO{}
-	if err := dal.FindOptionsByName(&option, o).Error; err != nil {
+	if err := dal.FindOptionByName(&option, o); err != nil {
 		return ""
 	}
 

@@ -16,7 +16,7 @@ import (
 // GetOptions returns the options list
 func (m *Repository) GetOptions(w http.ResponseWriter, r *http.Request) {
 	options := &[]types.NewOptionDTO{}
-	if err := dal.FindAllOptions(&options).Error; err != nil {
+	if err := dal.FindAllOptions(&options); err != nil {
 		utils.ServerError(w, err)
 		return
 	}

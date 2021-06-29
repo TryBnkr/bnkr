@@ -1,7 +1,7 @@
 package types
 
 type NewOptionDTO struct {
-	ID    uint
-	Name  string
-	Value string
+	ID    int    `db:"id"`
+	Name  string `db:"name"`
+	Value string `db:"value"`
 }

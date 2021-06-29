@@ -31,7 +31,7 @@
     <template x-if="!deletedItems.includes({{.ID}})">
       <tr>
         <th scope="row">{{.ID}}</th>
-        <td>{{humanTimezonedDate .CreatedAt $backup.Timezone}}</td>
+        <td>{{humanTimezonedDate .CreatedAt.Time $backup.Timezone}}</td>
         <td><a href="#" title="Click to download" @click.prevent="download({{.ID}})"><code>{{.File}}</code></a></td>
         <td>{{if eq .Status "success"}}<span class="badge rounded-pill bg-success">Success</span>{{else}}<span class="badge rounded-pill bg-danger">Fail</span>{{end}}</td>
         <td>

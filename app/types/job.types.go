@@ -1,17 +1,21 @@
 package types
 
-import "time"
+import (
+	"time"
+
+	"github.com/jackc/pgtype"
+)
 
 type NewJobDTO struct {
-	ID        uint
-	Backup    uint
-	Status    string
-	File      string
-	CreatedAt time.Time
+	ID        int    `db:"id"`
+	File      string `db:"file"`
+	Status    string `db:"status"`
+	Backup    int    `db:"backup"`
+	CreatedAt pgtype.Timestamptz `db:"created_at"`
 }
 
 type SmallJob struct {
-	Backup      int
-	Status      string
+	Backup    int
+	Status    string
 	CreatedAt time.Time
 }
