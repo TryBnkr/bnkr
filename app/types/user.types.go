@@ -1,14 +1,14 @@
 package types
 
 type NewUserDTO struct {
-	ID                   uint
-	Name                 string
-	Email                string
-	Password             string
+	ID       int    `db:"id"`
+	Name     string `db:"name"`
+	Email    string `db:"email"`
+	Password string `db:"password"`
 }
 
 type NewUserForm struct {
-	ID                   uint
+	ID                   int
 	Name                 string
 	Email                string
 	Password             string
