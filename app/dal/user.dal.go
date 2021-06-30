@@ -39,7 +39,7 @@ func DeleteUser(userIden interface{}) (sql.Result, error) {
 }
 
 func FindAllUsers(dest interface{}) error {
-	return database.DB.Get(dest, "SELECT * FROM users")
+	return database.DB.Select(dest, "SELECT * FROM users")
 }
 
 func UpdateUser(data interface{}) (sql.Result, error) {
