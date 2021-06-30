@@ -27,10 +27,11 @@ var functions = template.FuncMap{
 	"humanTimezonedDate": HumanTimezonedDate,
 	"constructCron":      ConstructCron,
 	"dayName":            DayName,
-	"Deref": func(i *int) int { return *i },
+	"Deref":              func(i *int) int { return *i },
 	"monthName":          MonthName,
 	"formatDate":         FormatDate,
 	"iterate":            Iterate,
+	"eWZANV":             EqualWithZeroAndNoValue,
 	"humanFrequency":     HumanFrequency,
 	"getBackupJob":       GetBackupJob,
 	"getThemes":          GetThemes,
@@ -62,6 +63,14 @@ func NewRenderer(a *config.AppConfig) {
 // HumanDate returns time in YYYY-MM-DD format
 func HumanDate(t time.Time) string {
 	return t.Format(time.ANSIC)
+}
+
+func EqualWithZeroAndNoValue(c int, v interface{}) bool {
+	if v != nil {
+		return c == v
+	} else {
+		return false
+	}
 }
 
 func TimezonedDate(t time.Time, tz string) time.Time {
