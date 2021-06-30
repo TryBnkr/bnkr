@@ -20,7 +20,7 @@ import (
 // GetUsers returns the users list
 func (m *Repository) GetUsers(w http.ResponseWriter, r *http.Request) {
 	users := &[]types.NewUserDTO{}
-	if err := dal.FindAllUsers(&users); err != nil {
+	if err := dal.FindAllUsers(users); err != nil {
 		utils.ServerError(w, err)
 		return
 	}
@@ -38,7 +38,7 @@ func (m *Repository) GetNewUser(w http.ResponseWriter, r *http.Request) {
 	if id != 0 {
 		user := &types.NewUserDTO{}
 
-		if err := dal.FindUserById(&user, id); err != nil {
+		if err := dal.FindUserById(user, id); err != nil {
 			utils.ServerError(w, err)
 			return
 		}

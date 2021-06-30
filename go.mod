@@ -22,5 +22,4 @@ require (
 	github.com/xhit/go-simple-mail/v2 v2.9.1
 	golang.org/x/crypto v0.0.0-20210616213533-5ff15b29337e
 	golang.org/x/net v0.0.0-20210610132358-84b48f89b13b // indirect
-	gorm.io/gorm v1.21.9
 )

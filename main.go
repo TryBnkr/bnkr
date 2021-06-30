@@ -118,7 +118,7 @@ func main() {
 
 func runJobs() {
 	backups := &[]types.NewBackupDTO{}
-	if err := dal.FindAllBackups(&backups); err != nil {
+	if err := dal.FindAllBackups(backups); err != nil {
 		panic(err)
 	}
 

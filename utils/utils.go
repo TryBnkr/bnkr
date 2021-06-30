@@ -506,14 +506,14 @@ func GetTimeZones() []string {
 }
 
 // GetUser is helper function for getting authenticated user's id
-func GetUser(w http.ResponseWriter, r *http.Request) *uint {
-	userId, ok := app.Session.Get(r.Context(), "user_id").(uint)
+func GetUser(w http.ResponseWriter, r *http.Request) int {
+	userId, ok := app.Session.Get(r.Context(), "user_id").(int)
 	if !ok {
 		app.Session.Put(r.Context(), "error", "Can't get user id from session!")
 		http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
-		return nil
+		return 0
 	}
-	return &userId
+	return userId
 }
 
 func IsAuthenticated(r *http.Request) bool {
@@ -534,7 +534,7 @@ func IsDuplicateKeyError(err error) bool {
 
 func GetOptionValue(o string) string {
 	option := &types.NewOptionDTO{}
-	if err := dal.FindOptionByName(&option, o); err != nil {
+	if err := dal.FindOptionByName(option, o); err != nil {
 		return ""
 	}
 

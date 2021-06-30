@@ -24,6 +24,15 @@ func CreateOption(option *Option) (sql.Result, error) {
 	return result, err
 }
 
+func CreateOrUpdateOption(option *Option) (sql.Result, error) {
+	return database.DB.NamedExec(`
+	INSERT INTO options (name, value) 
+	VALUES (:name, :value) 
+	ON CONFLICT (name) DO UPDATE 
+	SET value = :value
+		`, *option)
+}
+
 func FindOptionByName(dest interface{}, optionName interface{}) error {
 	return database.DB.Get(dest, "SELECT * FROM options WHERE name=$1", optionName)
 }
