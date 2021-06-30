@@ -42,7 +42,7 @@ func SelectLatestJobForEachBackup(dest interface{}) error {
 }
 
 func FindJobsIDByBackup(dest interface{}, backupIden interface{}, order string) error {
-	return database.DB.Get(dest, "SELECT id FROM jobs WHERE backup=$1 ORDER BY "+order, backupIden)
+	return database.DB.Select(dest, "SELECT id FROM jobs WHERE backup=$1 ORDER BY "+order, backupIden)
 }
 
 func FindJobById(dest interface{}, jobIden interface{}) error {
