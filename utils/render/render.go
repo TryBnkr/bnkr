@@ -157,7 +157,7 @@ func AddDefaultData(td *at.TemplateData, r *http.Request) *at.TemplateData {
 	td.CSRFToken = nosurf.Token(r)
 	if app.Session.Exists(r.Context(), "user_id") {
 		td.IsAuthenticated = 1
-		userId, _ := app.Session.Get(r.Context(), "user_id").(uint)
+		userId, _ := app.Session.Get(r.Context(), "user_id").(int)
 		userName, _ := app.Session.Get(r.Context(), "user_name").(string)
 		td.UserId = userId
 		td.UserName = userName
