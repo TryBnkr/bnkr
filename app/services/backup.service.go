@@ -9,7 +9,6 @@ import (
 
 	"github.com/MohammedAl-Mahdawi/bnkr/app/dal"
 	"github.com/MohammedAl-Mahdawi/bnkr/app/types"
-	"github.com/MohammedAl-Mahdawi/bnkr/config/database"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/forms"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/render"
@@ -21,15 +20,14 @@ import (
 func (m *Repository) GetBackups(w http.ResponseWriter, r *http.Request) {
 	// Get all backups
 	backups := &[]types.NewBackupDTO{}
-	if err := dal.FindAllBackups(&backups); err != nil {
+	if err := dal.FindAllBackups(backups); err != nil {
 		utils.ServerError(w, err)
 		return
 	}
 
 	// Get latest job foreach backup
 	var jobs []types.SmallJob
-	subQuery := database.DB.Select("MAX(created_at)").Group("backup").Table("jobs")
-	database.DB.Select("backup,status,created_at").Where("created_at IN (?)", subQuery).Table("jobs").Find(&jobs)
+	dal.SelectLatestJobForEachBackup(&jobs)
 
 	data := make(map[string]interface{})
 	data["backups"] = backups
@@ -45,7 +43,7 @@ func (m *Repository) GetNewBackup(w http.ResponseWriter, r *http.Request) {
 	if id != 0 {
 		backup := &types.NewBackupDTO{}
 
-		if err := dal.FindBackupById(&backup, id); err != nil {
+		if err := dal.FindBackupById(backup, id); err != nil {
 			utils.ServerError(w, err)
 			return
 		}
@@ -88,7 +86,7 @@ func (m *Repository) UpdateOrInsertCron(id int, typ string) error {
 	}
 
 	backup := &types.NewBackupDTO{}
-	if err := dal.FindBackupById(&backup, id); err != nil {
+	if err := dal.FindBackupById(backup, id); err != nil {
 		return err
 	}
 

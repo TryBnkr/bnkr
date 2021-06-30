@@ -1,12 +1,12 @@
 package main
 
 import (
+	"database/sql"
 	"errors"
 
 	"github.com/MohammedAl-Mahdawi/bnkr/app/dal"
 	"github.com/MohammedAl-Mahdawi/bnkr/app/services"
 	"github.com/MohammedAl-Mahdawi/bnkr/app/types"
-	"gorm.io/gorm"
 )
 
 func listenForQueues() {
@@ -28,53 +28,53 @@ func queueJob(q types.NewQueueDTO) {
 	}
 
 	queue := &dal.Queue{}
-	result := dal.FindQueueByTypeAndObject(&queue, typ, q.ID)
+	err := dal.FindQueueByTypeAndObject(queue, typ, q.ID)
 
 	// If this operation already queued then do nothing
-	if !(errors.Is(result.Error, gorm.ErrRecordNotFound)) {
+	if !(errors.Is(err, sql.ErrNoRows)) {
 		return
 	}
 
-	que, _ := CreateQueue(typ, &q.ID)
+	que, _ := CreateQueue(typ, q.ID)
 
 	if q.Process == "restore" {
 		job := &types.NewJobDTO{}
-		if err := dal.FindJobById(&job, q.ID); err != nil {
+		if err := dal.FindJobById(job, q.ID); err != nil {
 			// TODO send mail here & handle error
-			DeleteQueue(&que.ID)
+			DeleteQueue(que.ID)
 			return
 		}
 
 		backup := &types.NewBackupDTO{}
-		if err := dal.FindBackupById(&backup, job.Backup); err != nil {
+		if err := dal.FindBackupById(backup, job.Backup); err != nil {
 			// TODO send mail here & handle error
-			DeleteQueue(&que.ID)
+			DeleteQueue(que.ID)
 			return
 		}
 
 		if err := services.Repo.RestoreBackup(backup, job); err != nil {
 			// TODO send mail here & handle error
-			DeleteQueue(&que.ID)
+			DeleteQueue(que.ID)
 			return
 		}
 		// TODO handle error
-		DeleteQueue(&que.ID)
+		DeleteQueue(que.ID)
 	} else {
 		backup := &types.NewBackupDTO{}
 
-		if err := dal.FindBackupById(&backup, q.ID); err != nil {
-			DeleteQueue(&que.ID)
+		if err := dal.FindBackupById(backup, q.ID); err != nil {
+			DeleteQueue(que.ID)
 			return
 		}
 
 		_, err := services.Repo.CreateNewJob(backup, true)
 
 		if err != nil {
-			DeleteQueue(&que.ID)
+			DeleteQueue(que.ID)
 			return
 		}
 
-		DeleteQueue(&que.ID)
+		DeleteQueue(que.ID)
 	}
 }
 
@@ -91,7 +91,7 @@ func CreateQueue(t string, o int) (*dal.Queue, error) {
 	return q, nil
 }
 
-func DeleteQueue(id *uint) error {
+func DeleteQueue(id int) error {
 	if _, err := dal.DeleteQueue(id); err != nil {
 		return errors.New("unable to delete queue")
 	}

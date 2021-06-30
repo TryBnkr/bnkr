@@ -29,6 +29,18 @@ func FindJobsByBackup(dest interface{}, backupIden interface{}, order string) er
 	return database.DB.Get(dest, "SELECT * FROM jobs WHERE backup=$1 ORDER BY "+order, backupIden)
 }
 
+func SelectLatestJobForEachBackup(dest interface{}) error {
+	return database.DB.Get(dest, `
+	SELECT m.backup,ca,m.status FROM (
+		SELECT
+			backup, MAX(created_at) AS ca
+		FROM
+			jobs 
+		GROUP BY
+			backup) t join jobs m on t.backup = m.backup and t.ca = m.created_at;
+	`)
+}
+
 func FindJobsIDByBackup(dest interface{}, backupIden interface{}, order string) error {
 	return database.DB.Get(dest, "SELECT id FROM jobs WHERE backup=$1 ORDER BY "+order, backupIden)
 }

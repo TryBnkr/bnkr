@@ -101,7 +101,7 @@ func HumanFrequency(b *at.NewBackupDTO) string {
 	case "@monthly":
 		cron = fmt.Sprintf("%d of each month at %s", b.DayOfMonth, b.Time)
 	case "@weekly":
-		cron = fmt.Sprintf("Every %s at %s", DayName(*b.DayOfWeek), b.Time)
+		cron = fmt.Sprintf("Every %s at %s", DayName(b.DayOfWeek), b.Time)
 	case "@daily":
 		cron = fmt.Sprintf("Daily at %s", b.Time)
 	case "@hourly":
@@ -137,7 +137,7 @@ func ConstructCron(b *types.NewBackupDTO) string {
 		case "@monthly":
 			cron = s[1] + " " + s[0] + " " + strconv.Itoa(b.DayOfMonth) + " * *"
 		case "@weekly":
-			cron = s[1] + " " + s[0] + " * * " + strconv.Itoa(*b.DayOfWeek)
+			cron = s[1] + " " + s[0] + " * * " + strconv.Itoa(b.DayOfWeek)
 		case "@daily":
 			cron = s[1] + " " + s[0] + " * * *"
 		case "@hourly":

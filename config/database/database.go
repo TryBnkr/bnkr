@@ -31,7 +31,7 @@ func Connect(dsn string) {
 // Migrate migrates all the database tables
 func Migrate(dsn string) error {
 	m, err := migrate.New(
-		"file://migrations",
+		"file://config/database/migrations",
 		dsn)
 	if err != nil {
 		return err
