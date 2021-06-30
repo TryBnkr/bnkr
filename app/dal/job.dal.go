@@ -26,7 +26,7 @@ func CreateJob(job *Job) (sql.Result, error) {
 }
 
 func FindJobsByBackup(dest interface{}, backupIden interface{}, order string) error {
-	return database.DB.Get(dest, "SELECT * FROM jobs WHERE backup=$1 ORDER BY "+order, backupIden)
+	return database.DB.Select(dest, "SELECT * FROM jobs WHERE backup=$1 ORDER BY "+order, backupIden)
 }
 
 func SelectLatestJobForEachBackup(dest interface{}) error {
