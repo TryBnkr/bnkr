@@ -43,7 +43,7 @@ type Backup struct {
 
 // CreateBackup create a backup entry in the backup's table
 func CreateBackup(backup *Backup) (sql.Result, error) {
-	result, err := database.DB.NamedExec(`INSERT INTO backups (created_at, updated_at, name, frequency, timezone, custom_frequency, type, bucket, region, db_name, db_user, db_password, db_host, db_port, pod_label, pod_name, day_of_week, day_of_month, month, time, container, files_path, s3_access_key, s3_secret_key, storage_directory, retention, emails, user)
+	result, err := database.DB.NamedExec(`INSERT INTO backups (created_at, updated_at, "name", frequency, timezone, custom_frequency, "type", bucket, region, db_name, db_user, db_password, db_host, db_port, pod_label, pod_name, day_of_week, day_of_month, "month", "time", container, files_path, s3_access_key, s3_secret_key, storage_directory, retention, emails, "user")
 	VALUES (:created_at, :updated_at, :name, :frequency, :timezone, :custom_frequency, :type, :bucket, :region, :db_name, :db_user, :db_password, :db_host, :db_port, :pod_label, :pod_name, :day_of_week, :day_of_month, :month, :time, :container, :files_path, :s3_access_key, :s3_secret_key, :storage_directory, :retention, :emails, :user)`, *backup)
 
 	return result, err
@@ -62,7 +62,7 @@ func DeleteBackup(backupIden interface{}) (sql.Result, error) {
 }
 
 func UpdateBackup(data interface{}) (sql.Result, error) {
-	result, err := database.DB.NamedExec(`UPDATE backups SET (created_at, updated_at, name, frequency, timezone, custom_frequency, type, bucket, region, db_name, db_user, db_password, db_host, db_port, pod_label, pod_name, day_of_week, day_of_month, month, time, container, files_path, s3_access_key, s3_secret_key, storage_directory, retention, emails, user)
+	result, err := database.DB.NamedExec(`UPDATE backups SET (created_at, updated_at, "name", frequency, timezone, custom_frequency, "type", bucket, region, db_name, db_user, db_password, db_host, db_port, pod_label, pod_name, day_of_week, day_of_month, "month", "time", container, files_path, s3_access_key, s3_secret_key, storage_directory, retention, emails, "user")
 	= (:created_at, :updated_at, :name, :frequency, :timezone, :custom_frequency, :type, :bucket, :region, :db_name, :db_user, :db_password, :db_host, :db_port, :pod_label, :pod_name, :day_of_week, :day_of_month, :month, :time, :container, :files_path, :s3_access_key, :s3_secret_key, :storage_directory, :retention, :emails, :user) where id=:id`, data)
 	return result, err
 }
