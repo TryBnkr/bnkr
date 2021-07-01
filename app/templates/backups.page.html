@@ -30,7 +30,7 @@
         {{if eq .Frequency "custom"}}<td>Custom (<code :title="cronstrue.toString('{{.CustomFrequency}}')">{{.CustomFrequency}}</code>)</td>{{else}}<td x-text="cronstrue.toString('{{constructCron .}}')"></td>{{end}}
         {{$tz := .Timezone}}
         <td>{{.Timezone}}</td>
-        <td x-text="getTime('{{with $job.Backup}}{{humanTimezonedDate $job.CreatedAt.Time $tz}}{{end}}')"></td>
+        <td x-text="getTime('{{with $job.Backup}}{{humanTimezonedDate $job.CreatedAt $tz}}{{end}}')"></td>
         <td>{{with $job.Backup}}{{if eq $job.Status "success"}}<span class="badge rounded-pill bg-success">Success</span>{{else}}<span class="badge rounded-pill bg-danger">Fail</span>{{end}}{{end}}</td>
         <td>
           <button class="btn btn-success btn-sm" type="button" x-on:click="backupNow({{.ID}})"

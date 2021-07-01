@@ -1,9 +1,7 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/gob"
-	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -134,14 +132,18 @@ func runJobs() {
 
 func setup() {
 	// Check if any user exists, if no user exists then create new one.
-	err := dal.FindAllUsers(&struct{ ID string }{})
+	// TODO we need to retrive only one user here
+	us := &[]dal.User{}
+	dal.FindAllUsers(us)
 
 	// If no user exist
-	if errors.Is(err, sql.ErrNoRows) {
+	if len(*us) == 0 {
 		user := &dal.User{
-			Name:     os.Getenv("USERNAME"),
-			Password: password.Generate(os.Getenv("USERPASSWORD")),
-			Email:    os.Getenv("USEREMAIL"),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Name:      os.Getenv("USERNAME"),
+			Password:  password.Generate(os.Getenv("USERPASSWORD")),
+			Email:     os.Getenv("USEREMAIL"),
 		}
 
 		// Create a user, if error return

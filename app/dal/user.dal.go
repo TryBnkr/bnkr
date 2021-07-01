@@ -5,16 +5,18 @@ import (
 	"time"
 
 	"github.com/MohammedAl-Mahdawi/bnkr/config/database"
+	"github.com/jackc/pgtype"
 )
 
 // User struct defines the user
 type User struct {
-	ID        int       `db:"id"`
-	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
-	Name      string    `db:"name"`
-	Email     string    `db:"email"`
-	Password  string    `db:"password"`
+	ID        int                `db:"id"`
+	CreatedAt time.Time          `db:"created_at"`
+	UpdatedAt time.Time          `db:"updated_at"`
+	DeletedAt pgtype.Timestamptz `db:"deleted_at"`
+	Name      string             `db:"name"`
+	Email     string             `db:"email"`
+	Password  string             `db:"password"`
 }
 
 // CreateUser create a user entry in the user's table
@@ -42,7 +44,12 @@ func FindAllUsers(dest interface{}) error {
 	return database.DB.Select(dest, "SELECT * FROM users")
 }
 
-func UpdateUser(data interface{}) (sql.Result, error) {
-	return database.DB.NamedExec(`UPDATE users SET (created_at, updated_at, name, email, password)
-	= (:created_at, :updated_at, :name, :email, :password) where id=:id`, data)
+func UpdateUser(data *User) (sql.Result, error) {
+	if data.Password == "" {
+		return database.DB.NamedExec(`UPDATE users SET (updated_at, name, email)
+		= (:updated_at, :name, :email) where id=:id`, data)
+	} else {
+		return database.DB.NamedExec(`UPDATE users SET (updated_at, name, email, password)
+		= (:updated_at, :name, :email, :password) where id=:id`, data)
+	}
 }

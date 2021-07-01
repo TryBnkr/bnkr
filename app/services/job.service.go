@@ -131,9 +131,11 @@ func (m *Repository) GetRunningJobs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	queues := &[]dal.Queue{}
-	if err := dal.FindQueuesByObjectsIdsAndType(queues, jobsIds, "job", "created_at desc"); err != nil {
-		utils.ServerError(w, err)
-		return
+	if len(jobsIds) > 0 {
+		if err := dal.FindQueuesByObjectsIdsAndType(queues, jobsIds, "job", "created_at desc"); err != nil {
+			utils.ServerError(w, err)
+			return
+		}
 	}
 
 	jobsIds = []int{}
@@ -162,9 +164,11 @@ func (m *Repository) GetRunningBackups(w http.ResponseWriter, r *http.Request) {
 	}
 
 	queues := &[]dal.Queue{}
-	if err := dal.FindQueuesByObjectsIdsAndType(queues, backupsIds, "backup", "created_at desc"); err != nil {
-		utils.ServerError(w, err)
-		return
+	if len(backupsIds) > 0 {
+		if err := dal.FindQueuesByObjectsIdsAndType(queues, backupsIds, "backup", "created_at desc"); err != nil {
+			utils.ServerError(w, err)
+			return
+		}
 	}
 
 	backupsIds = []int{}
