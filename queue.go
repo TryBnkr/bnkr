@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/MohammedAl-Mahdawi/bnkr/app/dal"
 	"github.com/MohammedAl-Mahdawi/bnkr/app/services"
@@ -80,8 +81,10 @@ func queueJob(q types.NewQueueDTO) {
 
 func CreateQueue(t string, o int) (*dal.Queue, error) {
 	q := &dal.Queue{
-		Type:   t,
-		Object: o,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Type:      t,
+		Object:    o,
 	}
 
 	if _, err := dal.CreateQueue(q); err != nil {
