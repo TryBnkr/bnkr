@@ -651,6 +651,8 @@ func (m *Repository) DbBackup(b *types.NewBackupDTO, sendMail bool) (*dal.Job, e
 
 func (m *Repository) SaveJob(file string, status string, b *types.NewBackupDTO) (*dal.Job, error) {
 	o := &dal.Job{
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 		File:   file,
 		Status: status,
 		Backup: b.ID,
