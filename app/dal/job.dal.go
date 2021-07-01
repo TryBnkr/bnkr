@@ -30,7 +30,7 @@ func FindJobsByBackup(dest interface{}, backupIden interface{}, order string) er
 }
 
 func SelectLatestJobForEachBackup(dest interface{}) error {
-	return database.DB.Get(dest, `
+	return database.DB.Select(dest, `
 	SELECT m.backup,ca,m.status FROM (
 		SELECT
 			backup, MAX(created_at) AS ca
