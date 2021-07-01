@@ -24,7 +24,7 @@ func CreateQueue(queue *Queue) (int, error) {
 	var id int
 
 	rows, err := database.DB.NamedQuery(`INSERT INTO queues (created_at, updated_at, type, object)
-	VALUES (:created_at, :updated_at, :type, :object)`, *queue)
+	VALUES (:created_at, :updated_at, :type, :object) RETURNING id`, *queue)
 
 	if rows.Next() {
 		rows.Scan(&id)
@@ -50,6 +50,5 @@ func FindQueuesByObjectsIdsAndType(dest interface{}, ids interface{}, t string, 
 }
 
 func DeleteQueue(queueIden interface{}) (sql.Result, error) {
-	result, err := database.DB.Exec("delete from queues where id=$1", queueIden)
-	return result, err
+	return database.DB.Exec("delete from queues where id=$1", queueIden)
 }
