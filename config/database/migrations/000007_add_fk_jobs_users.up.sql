@@ -1,0 +1,6 @@
+ALTER TABLE
+  jobs DROP CONSTRAINT IF EXISTS fk_jobs_users;
+ALTER TABLE
+  jobs
+ADD
+  CONSTRAINT fk_jobs_users FOREIGN KEY (backup) REFERENCES backups(id) ON DELETE CASCADE;
