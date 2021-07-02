@@ -305,7 +305,7 @@ func (m *Repository) DeleteExtraBackups(b *types.NewBackupDTO) error {
 	}
 
 	currentBackups := len(*jobs)
-	retention := int(b.Retention)
+	retention := b.Retention
 
 	if currentBackups >= retention {
 		backupsMustDeleted := (*jobs)[0:(currentBackups - (retention - 1))]

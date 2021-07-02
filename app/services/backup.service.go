@@ -93,7 +93,7 @@ func (m *Repository) UpdateOrInsertCron(id int, typ string) error {
 	cron := render.ConstructCron(backup)
 	cronId, _ := m.App.Cron.AddFunc("CRON_TZ="+backup.Timezone+" "+cron, func() { m.CreateNewJob(backup, false) })
 
-	m.App.CronIds[int(backup.ID)] = cronId
+	m.App.CronIds[backup.ID] = cronId
 
 	return nil
 }

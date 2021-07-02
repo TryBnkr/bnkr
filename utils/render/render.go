@@ -122,7 +122,7 @@ func HumanFrequency(b *at.NewBackupDTO) string {
 
 func GetBackupJob(b *at.NewBackupDTO, jobs []at.SmallJob) at.SmallJob {
 	for _, j := range jobs {
-		if j.Backup == int(b.ID) {
+		if j.Backup == b.ID {
 			return j
 		}
 	}
