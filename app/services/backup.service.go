@@ -264,7 +264,7 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 		m.App.Session.Put(r.Context(), "flash", "Backup created")
 		// Insert cron
 		// TODO check error of UpdateOrInsertCron
-		m.UpdateOrInsertCron(int(d.ID), "create")
+		m.UpdateOrInsertCron(d.ID, "create")
 	}
 
 	http.Redirect(w, r, "/backups", http.StatusSeeOther)
