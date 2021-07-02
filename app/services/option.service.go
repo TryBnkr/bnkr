@@ -5,18 +5,15 @@ import (
 
 	"github.com/MohammedAl-Mahdawi/bnkr/app/dal"
 	"github.com/MohammedAl-Mahdawi/bnkr/app/types"
-	"github.com/MohammedAl-Mahdawi/bnkr/config/database"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/forms"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/render"
-
-	"gorm.io/gorm/clause"
 )
 
 // GetOptions returns the options list
 func (m *Repository) GetOptions(w http.ResponseWriter, r *http.Request) {
 	options := &[]types.NewOptionDTO{}
-	if err := dal.FindAllOptions(&options).Error; err != nil {
+	if err := dal.FindAllOptions(options); err != nil {
 		utils.ServerError(w, err)
 		return
 	}
@@ -57,7 +54,7 @@ func (m *Repository) PostOptions(w http.ResponseWriter, r *http.Request) {
 
 	values := map[string]string{
 		"BUSINESS_NAME": BusinessName,
-		"THEME": Theme,
+		"THEME":         Theme,
 		"FROM_EMAIL":    FromEmail,
 		"SMTP_HOST":     SMTPHost,
 		"SMTP_PORT":     SMTPPort,
@@ -82,10 +79,7 @@ func (m *Repository) PostOptions(w http.ResponseWriter, r *http.Request) {
 			Name:  k,
 			Value: v,
 		}
-		database.DB.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "name"}},
-			DoUpdates: clause.AssignmentColumns([]string{"value"}),
-		}).Create(&d)
+		dal.CreateOrUpdateOption(d)
 	}
 
 	m.App.Session.Put(r.Context(), "flash", "Options updated!")

@@ -5,10 +5,10 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/MohammedAl-Mahdawi/bnkr/app/dal"
 	"github.com/MohammedAl-Mahdawi/bnkr/app/types"
-	"github.com/MohammedAl-Mahdawi/bnkr/config/database"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/forms"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/render"
@@ -20,15 +20,14 @@ import (
 func (m *Repository) GetBackups(w http.ResponseWriter, r *http.Request) {
 	// Get all backups
 	backups := &[]types.NewBackupDTO{}
-	if err := dal.FindAllBackups(&backups).Error; err != nil {
+	if err := dal.FindAllBackups(backups); err != nil {
 		utils.ServerError(w, err)
 		return
 	}
 
 	// Get latest job foreach backup
 	var jobs []types.SmallJob
-	subQuery := database.DB.Select("MAX(created_at)").Group("backup").Table("jobs")
-	database.DB.Select("backup,status,created_at").Where("created_at IN (?)", subQuery).Table("jobs").Find(&jobs)
+	dal.SelectLatestJobForEachBackup(&jobs)
 
 	data := make(map[string]interface{})
 	data["backups"] = backups
@@ -44,7 +43,7 @@ func (m *Repository) GetNewBackup(w http.ResponseWriter, r *http.Request) {
 	if id != 0 {
 		backup := &types.NewBackupDTO{}
 
-		if err := dal.FindBackupsById(&backup, id).Error; err != nil {
+		if err := dal.FindBackupById(backup, id); err != nil {
 			utils.ServerError(w, err)
 			return
 		}
@@ -63,7 +62,7 @@ func (m *Repository) GetNewBackup(w http.ResponseWriter, r *http.Request) {
 
 func (m *Repository) DeleteBackup(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
-	if res := dal.DeleteBackup(id); res.RowsAffected == 0 {
+	if _, err := dal.DeleteBackup(id); err != nil {
 		utils.ServerError(w, errors.New("unable to delete backup"))
 		return
 	}
@@ -87,7 +86,7 @@ func (m *Repository) UpdateOrInsertCron(id int, typ string) error {
 	}
 
 	backup := &types.NewBackupDTO{}
-	if err := dal.FindBackupsById(&backup, id).Error; err != nil {
+	if err := dal.FindBackupById(backup, id); err != nil {
 		return err
 	}
 
@@ -113,7 +112,7 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 	backupName := r.Form.Get("backupName")
 	frequency := r.Form.Get("frequency")
 	timezone := r.Form.Get("timezone")
-	time := r.Form.Get("time")
+	backupTime := r.Form.Get("time")
 	region := r.Form.Get("region")
 	customFrequency := r.Form.Get("customFrequency")
 	backupType := r.Form.Get("type")
@@ -134,7 +133,7 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 	month, _ := strconv.Atoi(r.Form.Get("month"))
 	notificationEmail := r.Form.Get("notificationEmail")
 	storageDirectory := r.Form.Get("storageDirectory")
-	backupRetention, err := strconv.ParseUint(r.Form.Get("backupRetention"), 10, 64)
+	backupRetention, err := strconv.Atoi(r.Form.Get("backupRetention"))
 	if err != nil {
 		form.Errors.Add("backupRetention", "Invalid data type")
 	}
@@ -144,7 +143,7 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 		Frequency:        frequency,
 		CustomFrequency:  customFrequency,
 		Timezone:         timezone,
-		Time:             time,
+		Time:             backupTime,
 		Region:           region,
 		Type:             backupType,
 		Bucket:           bucket,
@@ -157,7 +156,7 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 		PodLabel:         podLabel,
 		PodName:          podName,
 		FilesPath:        filesPath,
-		DayOfWeek:        &dayOfWeek,
+		DayOfWeek:        dayOfWeek,
 		DayOfMonth:       dayOfMonth,
 		Month:            month,
 		S3AccessKey:      accessKey,
@@ -239,13 +238,15 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 		S3SecretKey:      values.S3SecretKey,
 		Region:           values.Region,
 		StorageDirectory: values.StorageDirectory,
-		Retention:        uint(values.Retention),
+		Retention:        values.Retention,
 		Emails:           values.Emails,
 		User:             utils.GetUser(w, r),
 	}
 
 	if id != 0 {
-		if err := dal.UpdateBackup(id, d).Error; err != nil {
+		d.UpdatedAt = time.Now()
+		d.ID = id
+		if _, err := dal.UpdateBackup(d); err != nil {
 			utils.ServerError(w, err)
 			return
 		}
@@ -254,7 +255,9 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 		// TODO check error of UpdateOrInsertCron
 		m.UpdateOrInsertCron(id, "update")
 	} else {
-		if err := dal.CreateBackup(d).Error; err != nil {
+		d.UpdatedAt = time.Now()
+		d.CreatedAt = time.Now()
+		if _, err := dal.CreateBackup(d); err != nil {
 			utils.ServerError(w, err)
 			return
 		}

@@ -1,25 +1,21 @@
 package database
 
 import (
+	"errors"
 	"fmt"
-	"os"
-	"time"
 
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/jmoiron/sqlx"
 )
 
 // DB is the underlying database connection
-var DB *gorm.DB
+var DB *sqlx.DB
 
 // Connect initiate the database connection and migrate all the tables
-func Connect() {
-	dsn := "host=" + os.Getenv("DB_HOST") + " user="+os.Getenv("DB_USER")+" password="+os.Getenv("DB_PASSWORD")+" dbname="+os.Getenv("DB_NAME")+" port="+os.Getenv("DB_PORT")+" sslmode="+os.Getenv("DB_SSLMODE")+" TimeZone="+os.Getenv("DB_TIMEZONE")+""
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		NowFunc: func() time.Time { return time.Now().Local() },
-		Logger:  logger.Default.LogMode(logger.Error),
-	})
+func Connect(dsn string) {
+	db, err := sqlx.Connect("postgres", dsn)
 
 	if err != nil {
 		fmt.Println("[DATABASE]::CONNECTION_ERROR")
@@ -33,6 +29,18 @@ func Connect() {
 }
 
 // Migrate migrates all the database tables
-func Migrate(tables ...interface{}) error {
-	return DB.AutoMigrate(tables...)
+func Migrate(dsn string) error {
+	m, err := migrate.New(
+		"file://config/database/migrations",
+		dsn)
+	if err != nil {
+		return err
+	}
+	if err := m.Up(); err != nil {
+		if !(errors.Is(err, migrate.ErrNoChange)) {
+			return err
+		}
+	}
+
+	return nil
 }

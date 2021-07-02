@@ -4,8 +4,8 @@ import "github.com/MohammedAl-Mahdawi/bnkr/utils/forms"
 
 // MsgResponse defined the message payload
 type MsgResponse struct {
-	Message string `json:"message"`
-	Data interface{} `json:"data"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data"`
 }
 
 type TemplateData struct {
@@ -19,7 +19,7 @@ type TemplateData struct {
 	Error           string
 	Theme           string
 	IsAuthenticated int
-	UserId          uint
+	UserId          int
 	UserName        string
 	Form            *forms.Form
 }

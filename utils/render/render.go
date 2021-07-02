@@ -27,10 +27,11 @@ var functions = template.FuncMap{
 	"humanTimezonedDate": HumanTimezonedDate,
 	"constructCron":      ConstructCron,
 	"dayName":            DayName,
-	"Deref": func(i *int) int { return *i },
+	"Deref":              func(i *int) int { return *i },
 	"monthName":          MonthName,
 	"formatDate":         FormatDate,
 	"iterate":            Iterate,
+	"eWZANV":             EqualWithZeroAndNoValue,
 	"humanFrequency":     HumanFrequency,
 	"getBackupJob":       GetBackupJob,
 	"getThemes":          GetThemes,
@@ -62,6 +63,14 @@ func NewRenderer(a *config.AppConfig) {
 // HumanDate returns time in YYYY-MM-DD format
 func HumanDate(t time.Time) string {
 	return t.Format(time.ANSIC)
+}
+
+func EqualWithZeroAndNoValue(c int, v interface{}) bool {
+	if v != nil {
+		return c == v
+	} else {
+		return false
+	}
 }
 
 func TimezonedDate(t time.Time, tz string) time.Time {
@@ -101,7 +110,7 @@ func HumanFrequency(b *at.NewBackupDTO) string {
 	case "@monthly":
 		cron = fmt.Sprintf("%d of each month at %s", b.DayOfMonth, b.Time)
 	case "@weekly":
-		cron = fmt.Sprintf("Every %s at %s", DayName(*b.DayOfWeek), b.Time)
+		cron = fmt.Sprintf("Every %s at %s", DayName(b.DayOfWeek), b.Time)
 	case "@daily":
 		cron = fmt.Sprintf("Daily at %s", b.Time)
 	case "@hourly":
@@ -137,7 +146,7 @@ func ConstructCron(b *types.NewBackupDTO) string {
 		case "@monthly":
 			cron = s[1] + " " + s[0] + " " + strconv.Itoa(b.DayOfMonth) + " * *"
 		case "@weekly":
-			cron = s[1] + " " + s[0] + " * * " + strconv.Itoa(*b.DayOfWeek)
+			cron = s[1] + " " + s[0] + " * * " + strconv.Itoa(b.DayOfWeek)
 		case "@daily":
 			cron = s[1] + " " + s[0] + " * * *"
 		case "@hourly":
@@ -157,7 +166,7 @@ func AddDefaultData(td *at.TemplateData, r *http.Request) *at.TemplateData {
 	td.CSRFToken = nosurf.Token(r)
 	if app.Session.Exists(r.Context(), "user_id") {
 		td.IsAuthenticated = 1
-		userId, _ := app.Session.Get(r.Context(), "user_id").(uint)
+		userId, _ := app.Session.Get(r.Context(), "user_id").(int)
 		userName, _ := app.Session.Get(r.Context(), "user_name").(string)
 		td.UserId = userId
 		td.UserName = userName

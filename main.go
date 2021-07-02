@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/gob"
-	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -26,7 +25,6 @@ import (
 	"github.com/alexedwards/scs/v2"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/robfig/cron/v3"
-	"gorm.io/gorm"
 )
 
 var app config.AppConfig
@@ -53,8 +51,10 @@ func main() {
 
 	app.Cron = cron.New()
 
-	database.Connect()
-	database.Migrate(&dal.User{}, &dal.Backup{}, &dal.Option{}, &dal.Job{}, &dal.Queue{})
+	dsn := "postgres://" + os.Getenv("DB_USER") + ":" + os.Getenv("DB_PASSWORD") + "@" + os.Getenv("DB_HOST") + ":" + os.Getenv("DB_PORT") + "/" + os.Getenv("DB_NAME") + "?sslmode=" + os.Getenv("DB_SSLMODE") + "&TimeZone=" + os.Getenv("DB_TIMEZONE")
+	database.Migrate(dsn)
+	database.Connect(dsn)
+	// TODO close db connection
 
 	tc, err := render.CreateTemplateCache()
 	if err != nil {
@@ -116,7 +116,7 @@ func main() {
 
 func runJobs() {
 	backups := &[]types.NewBackupDTO{}
-	if err := dal.FindAllBackups(&backups).Error; err != nil {
+	if err := dal.FindAllBackups(backups); err != nil {
 		panic(err)
 	}
 
@@ -132,18 +132,22 @@ func runJobs() {
 
 func setup() {
 	// Check if any user exists, if no user exists then create new one.
-	result := dal.FindUser(&struct{ ID string }{})
+	// TODO we need to retrive only one user here
+	us := &[]dal.User{}
+	dal.FindAllUsers(us)
 
 	// If no user exist
-	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+	if len(*us) == 0 {
 		user := &dal.User{
-			Name:     os.Getenv("USERNAME"),
-			Password: password.Generate(os.Getenv("USERPASSWORD")),
-			Email:    os.Getenv("USEREMAIL"),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Name:      os.Getenv("USERNAME"),
+			Password:  password.Generate(os.Getenv("USERPASSWORD")),
+			Email:     os.Getenv("USEREMAIL"),
 		}
 
 		// Create a user, if error return
-		if err := dal.CreateUser(user); err.Error != nil {
+		if _, err := dal.CreateUser(user); err != nil {
 			panic(err)
 		}
 
@@ -153,7 +157,7 @@ func setup() {
 			Value: app.Version,
 		}
 
-		if err := dal.CreateOption(o); err.Error != nil {
+		if _, err := dal.CreateOption(o); err != nil {
 			panic(err)
 		}
 	}

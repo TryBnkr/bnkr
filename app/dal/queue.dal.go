@@ -1,72 +1,54 @@
 package dal
 
 import (
-	"github.com/MohammedAl-Mahdawi/bnkr/config/database"
+	"database/sql"
+	"time"
 
-	"gorm.io/gorm"
+	"github.com/MohammedAl-Mahdawi/bnkr/config/database"
+	"github.com/jackc/pgtype"
+	"github.com/jmoiron/sqlx"
 )
 
 // Queue struct defines the Queue Model
 type Queue struct {
-	gorm.Model
-	Type   string
-	Object *uint `gorm:"not null" gorm:"index"`
-	// this is a pointer because int == 0,
+	ID        int                `db:"id"`
+	CreatedAt time.Time          `db:"created_at"`
+	UpdatedAt time.Time          `db:"updated_at"`
+	DeletedAt pgtype.Timestamptz `db:"deleted_at"`
+	Type      string             `db:"type"`
+	Object    int                `db:"object"`
 }
 
 // CreateQueue create a queue entry in the queue's table
-func CreateQueue(queue *Queue) *gorm.DB {
-	return database.DB.Create(&queue)
+func CreateQueue(queue *Queue) (int, error) {
+	var id int
+
+	rows, err := database.DB.NamedQuery(`INSERT INTO queues (created_at, updated_at, type, object)
+	VALUES (:created_at, :updated_at, :type, :object) RETURNING id`, *queue)
+
+	if rows.Next() {
+		rows.Scan(&id)
+	}
+
+	queue.ID = id
+
+	return id, err
 }
 
-// FindQueue finds a queue with given condition
-func FindQueue(dest interface{}, conds ...interface{}) *gorm.DB {
-	return database.DB.Model(&Queue{}).Take(dest, conds...)
+func FindQueueByTypeAndObject(dest interface{}, t interface{}, o interface{}) error {
+	return database.DB.Get(dest, "SELECT * FROM queues WHERE type=$1 AND object=$2", t, o)
 }
 
-// FindQueueByUser finds a queue with given queue and user identifier
-func FindQueueByUser(dest interface{}, queueIden interface{}, userIden interface{}) *gorm.DB {
-	return FindQueue(dest, "id = ? AND user = ?", queueIden, userIden)
+func FindQueuesByObjectsIdsAndType(dest interface{}, ids interface{}, t string, order string) error {
+	query, args, err := sqlx.In("SELECT * FROM queues WHERE object IN (?) AND type = (?) ORDER BY "+order+";", ids, t)
+
+	if err != nil {
+		return err
+	}
+
+	return database.DB.Select(dest, database.DB.Rebind(query), args...)
 }
 
-func FindQueueTypeAndObject(dest interface{}, t interface{}, o interface{}) *gorm.DB {
-	return FindQueue(dest, "type = ? AND object = ?", t, o)
-}
-
-// FindQueuesByUser finds the queues with user's identifier given
-func FindQueuesByUser(dest interface{}, userIden interface{}) *gorm.DB {
-	return database.DB.Model(&Queue{}).Find(dest, "user = ?", userIden)
-}
-
-func FindQueuesByBackup(dest interface{}, backupIden interface{}, order interface{}) *gorm.DB {
-	return database.DB.Model(&Queue{}).Order(order).Find(dest, "backup = ?", backupIden)
-}
-
-func FindQueuesByObjectsIdsAndType(dest interface{}, ids interface{}, t string, order interface{}) *gorm.DB {
-	return database.DB.Model(&Queue{}).Order(order).Where("object IN ? AND type = ?", ids, t).Find(dest)
-}
-
-func FindQueuesById(dest interface{}, queueIden interface{}) *gorm.DB {
-	return database.DB.Model(&Queue{}).Find(dest, "id = ?", queueIden)
-}
-
-func FindAllQueues(dest interface{}) *gorm.DB {
-	return database.DB.Model(&Queue{}).Find(dest)
-}
-
-// DeleteQueue deletes a queue from queues' table with the given queue and user identifier
-// func DeleteQueue(queueIden interface{}, userIden interface{}) *gorm.DB {
-// 	return database.DB.Unscoped().Delete(&Queue{}, "id = ? AND user = ?", queueIden, userIden)
-// }
-func DeleteQueue(queueIden interface{}) *gorm.DB {
-	return database.DB.Unscoped().Delete(&Queue{}, "id = ?", queueIden)
-}
-
-// UpdateQueue allows to update the queue with the given queueID and userID
-func UpdateUserQueue(queueIden interface{}, userIden interface{}, data interface{}) *gorm.DB {
-	return database.DB.Model(&Queue{}).Where("id = ? AND user = ?", queueIden, userIden).Updates(data)
-}
-
-func UpdateQueue(queueIden interface{}, data interface{}) *gorm.DB {
-	return database.DB.Model(&Queue{}).Where("id = ?", queueIden).Updates(data)
+func DeleteQueue(queueIden interface{}) (sql.Result, error) {
+	return database.DB.Exec("delete from queues where id=$1", queueIden)
 }

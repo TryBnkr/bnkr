@@ -1,6 +1,7 @@
 package services
 
 import (
+	"database/sql"
 	"errors"
 	"log"
 	"net/http"
@@ -11,8 +12,6 @@ import (
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/forms"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/password"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/render"
-
-	"gorm.io/gorm"
 )
 
 // Repo the repository used by the handlers
@@ -82,9 +81,9 @@ func (m *Repository) PostLogin(w http.ResponseWriter, r *http.Request) {
 	// Try to log the user in
 	u := &types.UserResponse{}
 
-	err2 := dal.FindUserByEmail(u, email).Error
+	err2 := dal.FindUserByEmail(u, email)
 
-	if errors.Is(err2, gorm.ErrRecordNotFound) {
+	if errors.Is(err2, sql.ErrNoRows) {
 		m.App.Session.Put(r.Context(), "error", "The email address or password you entered is incorrect, please try again.")
 		render.Template(w, r, "login.page.html", &types.TemplateData{
 			Form: form,

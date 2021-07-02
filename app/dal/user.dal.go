@@ -1,46 +1,55 @@
 package dal
 
 import (
-	"github.com/MohammedAl-Mahdawi/bnkr/config/database"
+	"database/sql"
+	"time"
 
-	"gorm.io/gorm"
+	"github.com/MohammedAl-Mahdawi/bnkr/config/database"
+	"github.com/jackc/pgtype"
 )
 
 // User struct defines the user
 type User struct {
-	gorm.Model
-	Name     string
-	Email    string `gorm:"uniqueIndex;not null"`
-	Password string `gorm:"not null"`
+	ID        int                `db:"id"`
+	CreatedAt time.Time          `db:"created_at"`
+	UpdatedAt time.Time          `db:"updated_at"`
+	DeletedAt pgtype.Timestamptz `db:"deleted_at"`
+	Name      string             `db:"name"`
+	Email     string             `db:"email"`
+	Password  string             `db:"password"`
 }
 
 // CreateUser create a user entry in the user's table
-func CreateUser(user *User) *gorm.DB {
-	return database.DB.Create(user)
-}
+func CreateUser(user *User) (sql.Result, error) {
+	result, err := database.DB.NamedExec(`INSERT INTO users (created_at, updated_at, name, email, password)
+	VALUES (:created_at, :updated_at, :name, :email, :password)`, *user)
 
-// FindUser searches the user's table with the condition given
-func FindUser(dest interface{}, conds ...interface{}) *gorm.DB {
-	return database.DB.Model(&User{}).Take(dest, conds...)
+	return result, err
 }
 
 // FindUserByEmail searches the user's table with the email given
-func FindUserByEmail(dest interface{}, email string) *gorm.DB {
-	return FindUser(dest, "email = ?", email)
+func FindUserByEmail(dest interface{}, email string) error {
+	return database.DB.Get(dest, "SELECT * FROM users WHERE email=$1", email)
 }
 
-func FindUsersById(dest interface{}, userIden interface{}) *gorm.DB {
-	return database.DB.Model(&User{}).Find(dest, "id = ?", userIden)
+func FindUserById(dest interface{}, userIden interface{}) error {
+	return database.DB.Get(dest, "SELECT * FROM users WHERE id=$1", userIden)
 }
 
-func DeleteUser(userIden interface{}) *gorm.DB {
-	return database.DB.Unscoped().Delete(&User{}, "id = ?", userIden)
+func DeleteUser(userIden interface{}) (sql.Result, error) {
+	return database.DB.Exec("delete from users where id=$1", userIden)
 }
 
-func FindAllUsers(dest interface{}) *gorm.DB {
-	return database.DB.Model(&User{}).Find(dest)
+func FindAllUsers(dest interface{}) error {
+	return database.DB.Select(dest, "SELECT * FROM users")
 }
 
-func UpdateUser(userIden interface{}, data interface{}) *gorm.DB {
-	return database.DB.Model(&User{}).Where("id = ?", userIden).Updates(data)
+func UpdateUser(data *User) (sql.Result, error) {
+	if data.Password == "" {
+		return database.DB.NamedExec(`UPDATE users SET (updated_at, name, email)
+		= (:updated_at, :name, :email) where id=:id`, data)
+	} else {
+		return database.DB.NamedExec(`UPDATE users SET (updated_at, name, email, password)
+		= (:updated_at, :name, :email, :password) where id=:id`, data)
+	}
 }
