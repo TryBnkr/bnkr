@@ -42,11 +42,19 @@ type Backup struct {
 }
 
 // CreateBackup create a backup entry in the backup's table
-func CreateBackup(backup *Backup) (sql.Result, error) {
-	result, err := database.DB.NamedExec(`INSERT INTO backups (created_at, updated_at, "name", frequency, timezone, custom_frequency, "type", bucket, region, db_name, db_user, db_password, db_host, db_port, pod_label, pod_name, day_of_week, day_of_month, "month", "time", container, files_path, s3_access_key, s3_secret_key, storage_directory, retention, emails, "user")
-	VALUES (:created_at, :updated_at, :name, :frequency, :timezone, :custom_frequency, :type, :bucket, :region, :db_name, :db_user, :db_password, :db_host, :db_port, :pod_label, :pod_name, :day_of_week, :day_of_month, :month, :time, :container, :files_path, :s3_access_key, :s3_secret_key, :storage_directory, :retention, :emails, :user)`, *backup)
+func CreateBackup(backup *Backup) (int, error) {
+	var id int
 
-	return result, err
+	rows, err := database.DB.NamedQuery(`INSERT INTO backups (created_at, updated_at, "name", frequency, timezone, custom_frequency, "type", bucket, region, db_name, db_user, db_password, db_host, db_port, pod_label, pod_name, day_of_week, day_of_month, "month", "time", container, files_path, s3_access_key, s3_secret_key, storage_directory, retention, emails, "user")
+	VALUES (:created_at, :updated_at, :name, :frequency, :timezone, :custom_frequency, :type, :bucket, :region, :db_name, :db_user, :db_password, :db_host, :db_port, :pod_label, :pod_name, :day_of_week, :day_of_month, :month, :time, :container, :files_path, :s3_access_key, :s3_secret_key, :storage_directory, :retention, :emails, :user) RETURNING id`, *backup)
+
+	if rows.Next() {
+		rows.Scan(&id)
+	}
+
+	backup.ID = id
+
+	return id, err
 }
 
 func FindBackupById(dest interface{}, backupIden interface{}) error {
