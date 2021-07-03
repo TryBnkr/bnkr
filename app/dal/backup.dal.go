@@ -70,7 +70,7 @@ func DeleteBackup(backupIden interface{}) (sql.Result, error) {
 }
 
 func UpdateBackup(data interface{}) (sql.Result, error) {
-	result, err := database.DB.NamedExec(`UPDATE backups SET (updated_at, "name", frequency, timezone, custom_frequency, "type", bucket, region, db_name, db_user, db_password, db_host, db_port, pod_label, pod_name, day_of_week, day_of_month, "month", "time", container, files_path, s3_access_key, s3_secret_key, storage_directory, retention, emails, "user", uri)
-	= (:updated_at, :name, :frequency, :timezone, :custom_frequency, :type, :bucket, :region, :db_name, :db_user, :db_password, :db_host, :db_port, :pod_label, :pod_name, :day_of_week, :day_of_month, :month, :time, :container, :files_path, :s3_access_key, :s3_secret_key, :storage_directory, :retention, :emails, :user, :uri) where id=:id`, data)
+	result, err := database.DB.NamedExec(`UPDATE backups SET (updated_at, "name", frequency, timezone, custom_frequency, "type", bucket, region, db_name, db_user, db_password, db_host, db_port, pod_label, pod_name, day_of_week, day_of_month, "month", "time", container, files_path, s3_access_key, s3_secret_key, storage_directory, retention, emails, uri)
+	= (:updated_at, :name, :frequency, :timezone, :custom_frequency, :type, :bucket, :region, :db_name, :db_user, :db_password, :db_host, :db_port, :pod_label, :pod_name, :day_of_week, :day_of_month, :month, :time, :container, :files_path, :s3_access_key, :s3_secret_key, :storage_directory, :retention, :emails, :uri) where id=:id`, data)
 	return result, err
 }

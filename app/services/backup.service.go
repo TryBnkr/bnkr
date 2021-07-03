@@ -59,6 +59,7 @@ func (m *Repository) CloneBackup(w http.ResponseWriter, r *http.Request) {
 		Time:  time.Now(),
 		Valid: true,
 	}
+	nb.User = utils.GetUser(w, r)
 
 	if _, err := dal.CreateBackup(&nb); err != nil {
 		utils.ServerError(w, err)
@@ -289,7 +290,6 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 		StorageDirectory: values.StorageDirectory,
 		Retention:        values.Retention,
 		Emails:           values.Emails,
-		User:             utils.GetUser(w, r),
 	}
 
 	if id != 0 {
@@ -315,6 +315,7 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 			Time:  time.Now(),
 			Valid: true,
 		}
+		d.User = utils.GetUser(w, r)
 		if _, err := dal.CreateBackup(d); err != nil {
 			utils.ServerError(w, err)
 			return
