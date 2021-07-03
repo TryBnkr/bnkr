@@ -5,18 +5,17 @@ import (
 	"time"
 
 	"github.com/MohammedAl-Mahdawi/bnkr/config/database"
-	"github.com/jackc/pgtype"
 	"github.com/jmoiron/sqlx"
 )
 
 // Queue struct defines the Queue Model
 type Queue struct {
-	ID        int                `db:"id"`
-	CreatedAt time.Time          `db:"created_at"`
-	UpdatedAt time.Time          `db:"updated_at"`
-	DeletedAt pgtype.Timestamptz `db:"deleted_at"`
-	Type      string             `db:"type"`
-	Object    int                `db:"object"`
+	ID        int          `db:"id"`
+	CreatedAt time.Time    `db:"created_at"`
+	UpdatedAt time.Time    `db:"updated_at"`
+	DeletedAt sql.NullTime `db:"deleted_at"`
+	Type      string       `db:"type"`
+	Object    int          `db:"object"`
 }
 
 // CreateQueue create a queue entry in the queue's table

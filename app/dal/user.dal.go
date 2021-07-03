@@ -5,18 +5,17 @@ import (
 	"time"
 
 	"github.com/MohammedAl-Mahdawi/bnkr/config/database"
-	"github.com/jackc/pgtype"
 )
 
 // User struct defines the user
 type User struct {
-	ID        int                `db:"id"`
-	CreatedAt time.Time          `db:"created_at"`
-	UpdatedAt time.Time          `db:"updated_at"`
-	DeletedAt pgtype.Timestamptz `db:"deleted_at"`
-	Name      string             `db:"name"`
-	Email     string             `db:"email"`
-	Password  string             `db:"password"`
+	ID        int          `db:"id"`
+	CreatedAt time.Time    `db:"created_at"`
+	UpdatedAt time.Time    `db:"updated_at"`
+	DeletedAt sql.NullTime `db:"deleted_at"`
+	Name      string       `db:"name"`
+	Email     string       `db:"email"`
+	Password  string       `db:"password"`
 }
 
 // CreateUser create a user entry in the user's table
