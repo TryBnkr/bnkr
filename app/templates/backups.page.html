@@ -36,7 +36,7 @@
           <button class="btn btn-success btn-sm" type="button" x-on:click="backupNow({{.ID}})"
             :disabled="backups.includes({{.ID}})" x-text="backups.includes({{.ID}}) ? 'In progress...' : 'Backup'"
             x-html="backups.includes({{.ID}}) ? spinner : 'Backup Now'"></button>
-          <a href="/backups/{{.ID}}" class="btn btn-secondary btn-sm" role="button">
+          <a href="/backups/{{.ID}}" class="btn btn-secondary btn-sm" title="Edit" role="button">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-pencil-fill"
               viewBox="0 0 16 16">
               <path
@@ -44,7 +44,9 @@
               </path>
             </svg>
           </a>
-          <button class="btn btn-danger btn-sm" @click="deleteBackup({{.ID}})">
+          <button class="btn btn-info btn-sm text-light" :disabled="clones.length !== 0" x-html="clones.includes({{.ID}}) ? cloneSpinner : cloneIcon" title="Clone" @click="clone({{.ID}})">
+          </button>
+          <button class="btn btn-danger btn-sm" title="Delete" @click="deleteBackup({{.ID}})">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-x-lg"
               viewBox="0 0 16 16">
               <path
@@ -63,7 +65,10 @@
   function tBody() {
     return {
       spinner: '<span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span> In progress...',
+      cloneSpinner: '<span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span>',
+      cloneIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-files" viewBox="0 0 16 16"><path d="M13 0H6a2 2 0 0 0-2 2 2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2 2 2 0 0 0 2-2V2a2 2 0 0 0-2-2zm0 13V4a2 2 0 0 0-2-2H5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1zM3 4a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4z"/></svg>',
       deletedItems: [],
+      clones: [],
       backups: [],
       getTime(d){
         if (d) {
@@ -119,6 +124,21 @@
             return response.json();
           })
           .then(data => {
+          })
+      },
+      clone(id) {
+        this.clones.push(id);
+        fetch('/json/backups/clone/'+id, {
+          method: "post",
+          headers: {
+            'Content-Type': 'application/json',
+            'csrf-token': document.getElementById('csrf_token').value,
+          },
+        })
+          .then(response => {
+            if (response.ok) {
+              location.reload();
+            }
           })
       },
       deleteBackup(id) {

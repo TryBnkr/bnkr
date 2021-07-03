@@ -59,6 +59,7 @@ func routes(app *config.AppConfig) http.Handler {
 	mux.Route("/json", func(mux chi.Router) {
 		mux.Use(pm.CsrfVerifier)
 		mux.Use(pm.Auth)
+		mux.Post("/backups/clone/{id}", services.Repo.CloneBackup)
 		mux.Delete("/backups/{id}", services.Repo.DeleteBackup)
 		mux.Delete("/users/{id}", services.Repo.DeleteUser)
 		mux.Post("/jobs/backup/{id}", services.Repo.PostJob)

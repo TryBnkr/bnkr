@@ -38,6 +38,38 @@ func (m *Repository) GetBackups(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (m *Repository) CloneBackup(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
+
+	backup := &types.NewBackupDTO{}
+
+	if err := dal.FindBackupById(backup, id); err != nil {
+		utils.ServerError(w, err)
+		return
+	}
+
+	nb := dal.Backup(*backup)
+
+	nb.Name = "Clone of " + nb.Name
+
+	if _, err := dal.CreateBackup(&nb); err != nil {
+		utils.ServerError(w, err)
+		return
+	}
+
+	m.App.Session.Put(r.Context(), "flash", "Clone created!")
+	// Insert cron
+	// TODO check error of UpdateOrInsertCron
+	m.UpdateOrInsertCron(nb.ID, "create")
+
+	out, _ := json.Marshal(&types.MsgResponse{
+		Message: "Clone successfully created!",
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(out)
+}
+
 func (m *Repository) GetNewBackup(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
 	data := make(map[string]interface{})
@@ -253,7 +285,10 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if id != 0 {
-		d.UpdatedAt = time.Now()
+		d.UpdatedAt = sql.NullTime{
+			Time:  time.Now(),
+			Valid: true,
+		}
 		d.ID = id
 		if _, err := dal.UpdateBackup(d); err != nil {
 			utils.ServerError(w, err)
@@ -264,8 +299,14 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 		// TODO check error of UpdateOrInsertCron
 		m.UpdateOrInsertCron(id, "update")
 	} else {
-		d.UpdatedAt = time.Now()
-		d.CreatedAt = time.Now()
+		d.UpdatedAt = sql.NullTime{
+			Time:  time.Now(),
+			Valid: true,
+		}
+		d.CreatedAt = sql.NullTime{
+			Time:  time.Now(),
+			Valid: true,
+		}
 		if _, err := dal.CreateBackup(d); err != nil {
 			utils.ServerError(w, err)
 			return
