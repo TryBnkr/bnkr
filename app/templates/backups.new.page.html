@@ -134,8 +134,20 @@
             <option value="db" {{with $res.Type}}{{if eq $res.Type "db" }}selected{{end}}{{end}}>MySQL Database</option>
             <option value="object" {{with $res.Type}}{{if eq $res.Type "object" }}selected{{end}}{{end}}>Files In Deployment or StatefulSet</option>
             <option value="pod" {{with $res.Type}}{{if eq $res.Type "pod" }}selected{{end}}{{end}}>Files In Pod</option>
+            <option value="mongo" {{with $res.Type}}{{if eq $res.Type "mongo" }}selected{{end}}{{end}}>MongoDB</option>
         </select>
         {{with .Form.Errors.Get "type"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div x-show="type=='mongo'" class="mb-3">
+        <label for="exampleInputURI1" class="form-label">URI</label>
+        <input name="uri" class="form-control {{if .Form.Errors.Get "uri"}} is-invalid {{else if
+            .Form.Has "uri" }} is-valid {{end}}" value="{{with $res.URI.Valid}}{{$res.URI.String}}{{end}}" id="exampleInputURI1"
+            aria-describedby="uriHelp">
+        {{with .Form.Errors.Get "uri"}}
         <div class="invalid-feedback">
             {{.}}
         </div>

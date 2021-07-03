@@ -1,6 +1,7 @@
 package services
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -119,6 +120,10 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 	bucket := r.Form.Get("bucket")
 	container := r.Form.Get("container")
 	dbName := r.Form.Get("dbName")
+	URI := sql.NullString{
+		String: r.Form.Get("uri"),
+		Valid:  true,
+	}
 	dbUser := r.Form.Get("dbUser")
 	dbPassword := r.Form.Get("dbPassword")
 	dbHost := r.Form.Get("dbHost")
@@ -159,6 +164,7 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 		DayOfWeek:        dayOfWeek,
 		DayOfMonth:       dayOfMonth,
 		Month:            month,
+		URI:              URI,
 		S3AccessKey:      accessKey,
 		S3SecretKey:      secretKey,
 		StorageDirectory: storageDirectory,
@@ -172,6 +178,8 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 		args = append(args, "dbName", "dbUser", "dbPassword", "dbHost", "dbPort")
 	} else if backupType == "object" {
 		args = append(args, "podLabel", "filesPath", "container")
+	} else if backupType == "mongo" {
+		args = append(args, "uri")
 	} else {
 		args = append(args, "filesPath", "container", "podName")
 	}
@@ -237,6 +245,7 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 		S3AccessKey:      values.S3AccessKey,
 		S3SecretKey:      values.S3SecretKey,
 		Region:           values.Region,
+		URI:              values.URI,
 		StorageDirectory: values.StorageDirectory,
 		Retention:        values.Retention,
 		Emails:           values.Emails,

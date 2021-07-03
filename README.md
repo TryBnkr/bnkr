@@ -5,9 +5,9 @@ Bnkr is a height performance backup application written in go.
 
 ## Current Roadmap
 
-- [ ] Support MongoDB backup.
+- [x] Support MongoDB backup & restore.
 - [ ] Accept kubeconfig
-- [ ] Support PostgreSQL backup.
+- [ ] Support PostgreSQL backup & restore.
 - [ ] Support S3 compilable object storages.
 - [ ] Use Redis for cache and session.
 - [ ] Helm chart.

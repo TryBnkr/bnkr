@@ -1,6 +1,10 @@
 package types
 
-import "github.com/jackc/pgtype"
+import (
+	"database/sql"
+
+	"github.com/jackc/pgtype"
+)
 
 type NewBackupDTO struct {
 	ID               int                `db:"id"`
@@ -32,5 +36,6 @@ type NewBackupDTO struct {
 	StorageDirectory string             `db:"storage_directory"`
 	Retention        int                `db:"retention"`
 	Emails           string             `db:"emails"`
+	URI              sql.NullString     `db:"uri"`
 	User             int                `db:"user"`
 }

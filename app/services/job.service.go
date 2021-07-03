@@ -422,7 +422,10 @@ func (m *Repository) PrepareBackup(b *types.NewBackupDTO, backupName string, s3F
 	if backupName == "" {
 		if b.Type == "db" {
 			backupName = b.DbName + "." + currentTime + ".sql.gz"
+		} else if b.Type == "mongo" {
+			backupName = currentTime + ".gz"
 		} else {
+			// Files
 			backupName = currentTime + ".tar.gz"
 		}
 	}
@@ -432,7 +435,7 @@ func (m *Repository) PrepareBackup(b *types.NewBackupDTO, backupName string, s3F
 		From: utils.GetOptionValue("FROM_EMAIL"),
 	}
 
-	if b.Type == "db" {
+	if b.Type == "db" || b.Type == "mongo" {
 		msg.Subject = fmt.Sprintf("Database backup %s failed!", b.Name)
 	} else {
 		msg.Subject = fmt.Sprintf("Files backup %s failed!", b.Name)
@@ -590,6 +593,24 @@ func (m *Repository) DbRestore(b *types.NewBackupDTO, j *types.NewJobDTO) error 
 	return Repo.TerminateRestore("", commons.SuccessStatus, &commons, b, nil)
 }
 
+func (m *Repository) MongoDbRestore(b *types.NewBackupDTO, j *types.NewJobDTO) error {
+	commons := Repo.PrepareBackup(b, "", j.File)
+
+	if err := Repo.DownloadFromS3(b, &commons); err != nil {
+		return Repo.TerminateRestore("Can't download from S3", commons.FailedStatus, &commons, b, err)
+	}
+
+	// Restore the database
+	args := []string{"--uri=" + b.URI.String, "--gzip", "--drop", "--archive=" + commons.BackupPath}
+	mongodump := exec.Command("mongorestore", args...)
+
+	if _, err := mongodump.Output(); err != nil {
+		return Repo.TerminateRestore("Can't excute mongorestore command", commons.FailedStatus, &commons, b, err)
+	}
+
+	return Repo.TerminateRestore("", commons.SuccessStatus, &commons, b, nil)
+}
+
 func (m *Repository) DbBackup(b *types.NewBackupDTO, sendMail bool) (*dal.Job, error) {
 	commons := Repo.PrepareBackup(b, "", "")
 	// check the retention number and remove if necessary
@@ -649,13 +670,37 @@ func (m *Repository) DbBackup(b *types.NewBackupDTO, sendMail bool) (*dal.Job, e
 	return Repo.TerminateBackup("", commons.SuccessStatus, &commons, b, sendMail)
 }
 
+func (m *Repository) MongoDbBackup(b *types.NewBackupDTO, sendMail bool) (*dal.Job, error) {
+	commons := Repo.PrepareBackup(b, "", "")
+	// check the retention number and remove if necessary
+	err := Repo.DeleteExtraBackups(b)
+	if err != nil {
+		return Repo.TerminateBackup("Cant delete extra backups!", commons.FailedStatus, &commons, b, sendMail)
+	}
+
+	// Dump the database
+	args := []string{"--uri=" + b.URI.String, "--gzip", "--archive=" + commons.BackupPath}
+	mongodump := exec.Command("mongodump", args...)
+
+	if _, err := mongodump.Output(); err != nil {
+		return Repo.TerminateBackup("Failed to execute mongodump command!", commons.FailedStatus, &commons, b, sendMail)
+	}
+
+	// Upload to S3
+	if err := Repo.UploadToS3(b, &commons); err != nil {
+		return Repo.TerminateBackup("Cant upload to S3", commons.FailedStatus, &commons, b, sendMail)
+	}
+
+	return Repo.TerminateBackup("", commons.SuccessStatus, &commons, b, sendMail)
+}
+
 func (m *Repository) SaveJob(file string, status string, b *types.NewBackupDTO) (*dal.Job, error) {
 	o := &dal.Job{
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
-		File:   file,
-		Status: status,
-		Backup: b.ID,
+		File:      file,
+		Status:    status,
+		Backup:    b.ID,
 	}
 
 	if _, err := dal.CreateJob(o); err != nil {
@@ -723,6 +768,8 @@ func (m *Repository) FilesBackup(b *types.NewBackupDTO, sendMail bool) (*dal.Job
 func (m *Repository) CreateNewJob(b *types.NewBackupDTO, sendMail bool) (*dal.Job, error) {
 	if b.Type == "db" {
 		return Repo.DbBackup(b, sendMail)
+	} else if b.Type == "mongo" {
+		return Repo.MongoDbBackup(b, sendMail)
 	} else {
 		return Repo.FilesBackup(b, sendMail)
 	}
@@ -731,6 +778,8 @@ func (m *Repository) CreateNewJob(b *types.NewBackupDTO, sendMail bool) (*dal.Jo
 func (m *Repository) RestoreBackup(b *types.NewBackupDTO, j *types.NewJobDTO) error {
 	if b.Type == "db" {
 		return Repo.DbRestore(b, j)
+	} else if b.Type == "mongo" {
+		return Repo.MongoDbRestore(b, j)
 	} else {
 		return Repo.FilesRestore(b, j)
 	}
