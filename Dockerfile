@@ -24,6 +24,7 @@ RUN rm ./mongodb-tools.deb
 
 COPY --from=builder /go/src/app/main /main
 COPY --from=builder /go/src/app/app/templates /app/templates
+COPY --from=builder /go/src/app/config/database/migrations /config/database/migrations
 COPY --from=builder /go/src/app/static /static
 
 ENTRYPOINT /main
