@@ -51,6 +51,14 @@ func (m *Repository) CloneBackup(w http.ResponseWriter, r *http.Request) {
 	nb := dal.Backup(*backup)
 
 	nb.Name = "Clone of " + nb.Name
+	nb.CreatedAt = sql.NullTime{
+		Time:  time.Now(),
+		Valid: true,
+	}
+	nb.UpdatedAt = sql.NullTime{
+		Time:  time.Now(),
+		Valid: true,
+	}
 
 	if _, err := dal.CreateBackup(&nb); err != nil {
 		utils.ServerError(w, err)
