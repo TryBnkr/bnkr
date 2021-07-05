@@ -28,11 +28,10 @@
       <tr>
         <th scope="row">{{.ID}}</th>
         <td><a href="/jobs/backups/{{.ID}}">{{.Name}}</a></td>
-        {{$next := formatDate (index $nextOcc .ID) "Mon Jan _2 15:04:05 2006"}}
+        {{$next := formatDate (index $nextOcc .ID) "2006-01-02T15:04:05-0700"}}
         {{if eq .Frequency "custom"}}<td data-bs-toggle="tooltip" data-bs-html="true" :title="getTime('{{$next}}')">Custom (<code :title="cronstrue.toString('{{.CustomFrequency}}')">{{.CustomFrequency}}</code>)</td>{{else if eq .Frequency "@hourly"}}<td data-bs-toggle="tooltip" data-bs-html="true" :title="getTime('{{$next}}')">Hourly</td>{{else}}<td data-bs-toggle="tooltip" data-bs-html="true" :title="getTime('{{$next}}')" x-html="cronstrue.toString('{{constructCron .}}')"></td>{{end}}
-        {{$tz := .Timezone}}
         <td>{{.Timezone}}</td>
-        <td x-text="getTime('{{with $job.Backup}}{{humanTimezonedDate $job.CreatedAt $tz}}{{end}}')"></td>
+        <td x-text="getTime('{{with $job.Backup}}{{formatDate $job.CreatedAt "2006-01-02T15:04:05-0700"}}{{end}}')"></td>
         <td>{{with $job.Backup}}{{if eq $job.Status "success"}}<span class="badge rounded-pill bg-success">Success</span>{{else}}<span class="badge rounded-pill bg-danger">Fail</span>{{end}}{{end}}</td>
         <td>
           <button class="btn btn-success btn-sm" type="button" x-on:click="backupNow({{.ID}})"
