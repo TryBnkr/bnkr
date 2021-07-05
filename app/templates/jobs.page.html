@@ -11,7 +11,7 @@
     <ul class="list-group list-group-flush">
       <li class="list-group-item">Name: {{$backup.Name}}</li>
       <li class="list-group-item">Timezone: {{$backup.Timezone}}</li>
-      <li class="list-group-item">Type: {{if eq $backup.Type "object"}}Files In Deployment or StatefulSet{{else if eq $backup.Type "pod"}}Files In Pod{{else}}MySQL Database{{end}}</li>
+      <li class="list-group-item">Type: {{if eq $backup.Type "object"}}Files In Deployment or StatefulSet{{else if eq $backup.Type "pod"}}Files In Pod{{else if eq $backup.Type "db"}}MySQL/MariaDB Database{{else if eq $backup.Type "pg"}}PostgreSQL Database{{else if eq $backup.Type "mongo"}}MongoDB Database{{else if eq $backup.Type "bnkr"}}Bnkr DB{{end}}</li>
       <li class="list-group-item">Bucket: {{$backup.Bucket}}</li>
     </ul>
   </div>

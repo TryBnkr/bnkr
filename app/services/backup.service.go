@@ -229,9 +229,9 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 		args = append(args, "dbName", "dbUser", "dbPassword", "dbHost", "dbPort")
 	} else if backupType == "object" {
 		args = append(args, "podLabel", "filesPath", "container")
-	} else if backupType == "mongo" {
+	} else if backupType == "mongo" || backupType == "pg" {
 		args = append(args, "uri")
-	} else {
+	} else if backupType == "pod" {
 		args = append(args, "filesPath", "container", "podName")
 	}
 
