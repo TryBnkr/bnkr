@@ -17,6 +17,7 @@ type AppConfig struct {
 	ErrorLog      *log.Logger
 	UseCache      bool
 	Version       string
+	DbUri         string
 	MailChan      chan types.MailData
 	Queue         chan types.NewQueueDTO
 	Cron          *cron.Cron

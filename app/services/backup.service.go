@@ -30,9 +30,19 @@ func (m *Repository) GetBackups(w http.ResponseWriter, r *http.Request) {
 	var jobs []types.SmallJob
 	dal.SelectLatestJobForEachBackup(&jobs)
 
+	ce := make(map[int]time.Time)
+	for _, e := range m.App.Cron.Entries() {
+		for b, ci := range m.App.CronIds {
+			if ci == e.ID {
+				ce[b] = e.Next
+			}
+		}
+	}
+
 	data := make(map[string]interface{})
 	data["backups"] = backups
 	data["jobs"] = jobs
+	data["nextOcc"] = ce
 	render.Template(w, r, "backups.page.html", &types.TemplateData{
 		Data: data,
 	})

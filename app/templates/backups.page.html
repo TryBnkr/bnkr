@@ -7,6 +7,7 @@
 {{define "content"}}
 {{$backups := index .Data "backups"}}
 {{$jobs := index .Data "jobs"}}
+{{$nextOcc := index .Data "nextOcc"}}
 <input type="hidden" id="csrf_token" name="csrf_token" value="{{.CSRFToken}}">
 <table class="table table-hover align-middle">
   <thead>
@@ -27,7 +28,8 @@
       <tr>
         <th scope="row">{{.ID}}</th>
         <td><a href="/jobs/backups/{{.ID}}">{{.Name}}</a></td>
-        {{if eq .Frequency "custom"}}<td>Custom (<code :title="cronstrue.toString('{{.CustomFrequency}}')">{{.CustomFrequency}}</code>)</td>{{else if eq .Frequency "@hourly"}}<td>Hourly</td>{{else}}<td x-text="cronstrue.toString('{{constructCron .}}')"></td>{{end}}
+        {{$next := formatDate (index $nextOcc .ID) "Mon Jan _2 15:04:05 2006"}}
+        {{if eq .Frequency "custom"}}<td data-bs-toggle="tooltip" data-bs-html="true" :title="getTime('{{$next}}')">Custom (<code :title="cronstrue.toString('{{.CustomFrequency}}')">{{.CustomFrequency}}</code>)</td>{{else if eq .Frequency "@hourly"}}<td data-bs-toggle="tooltip" data-bs-html="true" :title="getTime('{{$next}}')">Hourly</td>{{else}}<td data-bs-toggle="tooltip" data-bs-html="true" :title="getTime('{{$next}}')" x-html="cronstrue.toString('{{constructCron .}}')"></td>{{end}}
         {{$tz := .Timezone}}
         <td>{{.Timezone}}</td>
         <td x-text="getTime('{{with $job.Backup}}{{humanTimezonedDate $job.CreatedAt $tz}}{{end}}')"></td>

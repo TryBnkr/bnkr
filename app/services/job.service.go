@@ -424,6 +424,8 @@ func (m *Repository) PrepareBackup(b *types.NewBackupDTO, backupName string, s3F
 			backupName = b.DbName + "." + currentTime + ".sql.gz"
 		} else if b.Type == "mongo" {
 			backupName = currentTime + ".gz"
+		} else if b.Type == "pg" || b.Type == "bnkr" {
+			backupName = currentTime + ".psql.gz"
 		} else {
 			// Files
 			backupName = currentTime + ".tar.gz"
@@ -435,7 +437,7 @@ func (m *Repository) PrepareBackup(b *types.NewBackupDTO, backupName string, s3F
 		From: utils.GetOptionValue("FROM_EMAIL"),
 	}
 
-	if b.Type == "db" || b.Type == "mongo" {
+	if b.Type == "db" || b.Type == "mongo" || b.Type == "pg" || b.Type == "bnkr" {
 		msg.Subject = fmt.Sprintf("Database backup %s failed!", b.Name)
 	} else {
 		msg.Subject = fmt.Sprintf("Files backup %s failed!", b.Name)
@@ -593,6 +595,62 @@ func (m *Repository) DbRestore(b *types.NewBackupDTO, j *types.NewJobDTO) error 
 	return Repo.TerminateRestore("", commons.SuccessStatus, &commons, b, nil)
 }
 
+func (m *Repository) PgRestore(b *types.NewBackupDTO, j *types.NewJobDTO) error {
+	commons := Repo.PrepareBackup(b, "", j.File)
+
+	if err := Repo.DownloadFromS3(b, &commons); err != nil {
+		return Repo.TerminateRestore("Can't download from S3", commons.FailedStatus, &commons, b, err)
+	}
+
+	file, err := os.Open(commons.BackupPath)
+	if err != nil {
+		return Repo.TerminateRestore("Can't open file", commons.FailedStatus, &commons, b, err)
+	}
+	defer file.Close()
+
+	gunzip := exec.Command("gunzip")
+	gunzip.Stdin = file
+
+	uri := b.URI.String
+	if b.Type == "bnkr" {
+		uri = m.App.DbUri
+	}
+
+	args := []string{uri}
+	psql := exec.Command("psql", args...)
+
+	// Get gunzip's stdout and attach it to psql's stdin.
+	pipe, err := gunzip.StdoutPipe()
+	if err != nil {
+		return Repo.TerminateRestore("Unzip pip error", commons.FailedStatus, &commons, b, err)
+	}
+	defer pipe.Close()
+
+	psql.Stdin = pipe
+
+	// Run gunzip first.
+	err2 := gunzip.Start()
+	if err2 != nil {
+		return Repo.TerminateRestore("Can't start unziping!", commons.FailedStatus, &commons, b, err2)
+	}
+
+	err = psql.Start()
+	if err != nil {
+		return Repo.TerminateRestore("Can't start psql command", commons.FailedStatus, &commons, b, err)
+	}
+	err = psql.Wait()
+	if err != nil {
+		return Repo.TerminateRestore("Error while executing psql command", commons.FailedStatus, &commons, b, err)
+	}
+
+	err = gunzip.Wait()
+	if err != nil {
+		return Repo.TerminateRestore("Error while unzipping", commons.FailedStatus, &commons, b, err)
+	}
+
+	return Repo.TerminateRestore("", commons.SuccessStatus, &commons, b, nil)
+}
+
 func (m *Repository) MongoDbRestore(b *types.NewBackupDTO, j *types.NewJobDTO) error {
 	commons := Repo.PrepareBackup(b, "", j.File)
 
@@ -661,6 +719,70 @@ func (m *Repository) DbBackup(b *types.NewBackupDTO, sendMail bool) (*dal.Job, e
 	err = mysqldump.Wait()
 	if err != nil {
 		return Repo.TerminateBackup(fmt.Sprintf("Failed to excute command: %s", strings.Replace("mysqldump "+strings.Join(args, " "), b.DbPassword, "******", 1)), commons.FailedStatus, &commons, b, sendMail)
+	}
+
+	if err := Repo.UploadToS3(b, &commons); err != nil {
+		return Repo.TerminateBackup("Cant upload to S3", commons.FailedStatus, &commons, b, sendMail)
+	}
+
+	return Repo.TerminateBackup("", commons.SuccessStatus, &commons, b, sendMail)
+}
+
+func (m *Repository) PgBackup(b *types.NewBackupDTO, sendMail bool) (*dal.Job, error) {
+	commons := Repo.PrepareBackup(b, "", "")
+	// check the retention number and remove if necessary
+	err := Repo.DeleteExtraBackups(b)
+	if err != nil {
+		return Repo.TerminateBackup("Cant delete extra backups!", commons.FailedStatus, &commons, b, sendMail)
+	}
+
+	// open the out file for writing
+	outfile, err := os.Create(commons.BackupPath)
+	if err != nil {
+		return Repo.TerminateBackup(fmt.Sprintf("Failed to create %s file!", commons.BackupPath), commons.FailedStatus, &commons, b, sendMail)
+	}
+	defer outfile.Close()
+
+	uri := b.URI.String
+	if b.Type == "bnkr" {
+		uri = m.App.DbUri
+	}
+
+	args := []string{"--dbname=" + uri}
+	pg_dump := exec.Command("pg_dump", args...)
+
+	pg_dump.Stderr = os.Stderr
+
+	gzip := exec.Command("gzip")
+	gzip.Stdout = outfile
+
+	// Get pg_dump's stdout and attach it to gzip's stdin.
+	pipe, err := pg_dump.StdoutPipe()
+	if err != nil {
+		return Repo.TerminateBackup("Failed to get pg_dump pipe!", commons.FailedStatus, &commons, b, sendMail)
+	}
+	defer pipe.Close()
+
+	gzip.Stdin = pipe
+
+	// Run pg_dump first.
+	err2 := pg_dump.Start()
+	if err2 != nil {
+		return Repo.TerminateBackup("Failed to start pg_dump command!", commons.FailedStatus, &commons, b, sendMail)
+	}
+
+	err = gzip.Start()
+	if err != nil {
+		return Repo.TerminateBackup("Failed to start gzip command!", commons.FailedStatus, &commons, b, sendMail)
+	}
+	err = gzip.Wait()
+	if err != nil {
+		return Repo.TerminateBackup("Failed to excute gzip command!", commons.FailedStatus, &commons, b, sendMail)
+	}
+
+	err = pg_dump.Wait()
+	if err != nil {
+		return Repo.TerminateBackup("Failed to excute pg_dump command!", commons.FailedStatus, &commons, b, sendMail)
 	}
 
 	if err := Repo.UploadToS3(b, &commons); err != nil {
@@ -770,6 +892,8 @@ func (m *Repository) CreateNewJob(b *types.NewBackupDTO, sendMail bool) (*dal.Jo
 		return Repo.DbBackup(b, sendMail)
 	} else if b.Type == "mongo" {
 		return Repo.MongoDbBackup(b, sendMail)
+	} else if b.Type == "pg" || b.Type == "bnkr" {
+		return Repo.PgBackup(b, sendMail)
 	} else {
 		return Repo.FilesBackup(b, sendMail)
 	}
@@ -780,6 +904,8 @@ func (m *Repository) RestoreBackup(b *types.NewBackupDTO, j *types.NewJobDTO) er
 		return Repo.DbRestore(b, j)
 	} else if b.Type == "mongo" {
 		return Repo.MongoDbRestore(b, j)
+	} else if b.Type == "pg" || b.Type == "bnkr" {
+		return Repo.PgRestore(b, j)
 	} else {
 		return Repo.FilesRestore(b, j)
 	}

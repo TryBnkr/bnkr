@@ -8,7 +8,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a *.go
 FROM mariadb:10.5.9-focal
 ARG TARGETPLATFORM
 
-RUN apt-get update
+RUN apt update
 
 RUN apt install curl -y
 
@@ -21,6 +21,11 @@ RUN if [ $TARGETPLATFORM = "linux/amd64" ]; then curl https://fastdl.mongodb.org
 
 RUN apt install ./mongodb-tools.deb -y
 RUN rm ./mongodb-tools.deb
+
+# Install PostgresQL
+RUN DEBIAN_FRONTEND=noninteractive apt install --no-install-recommends postgresql postgresql-contrib -y
+
+RUN apt clean && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /go/src/app/main /main
 COPY --from=builder /go/src/app/app/templates /app/templates
