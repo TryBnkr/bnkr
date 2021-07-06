@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"net/http"
 
 	"github.com/MohammedAl-Mahdawi/bnkr/app/services"
@@ -11,6 +12,9 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
+//go:embed static
+var staticFiles embed.FS
+
 func routes(app *config.AppConfig) http.Handler {
 	mux := chi.NewRouter()
 
@@ -18,8 +22,9 @@ func routes(app *config.AppConfig) http.Handler {
 	mux.Use(pm.NoSurf)
 	mux.Use(pm.SessionLoad)
 
-	fileServer := http.FileServer(http.Dir("./static/"))
-	mux.Handle("/static/*", http.StripPrefix("/static", fileServer))
+	var staticFS = http.FS(staticFiles)
+	fileServer := http.FileServer(staticFS)
+	mux.Handle("/static/*", fileServer)
 
 	mux.Route("/auth", func(mux chi.Router) {
 		mux.Get("/login", services.Repo.GetLogin)

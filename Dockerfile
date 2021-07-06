@@ -28,8 +28,5 @@ RUN DEBIAN_FRONTEND=noninteractive apt install --no-install-recommends postgresq
 RUN apt clean && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /go/src/app/main /main
-COPY --from=builder /go/src/app/app/templates /app/templates
-COPY --from=builder /go/src/app/config/database/migrations /config/database/migrations
-COPY --from=builder /go/src/app/static /static
 
 ENTRYPOINT /main

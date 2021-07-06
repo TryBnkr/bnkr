@@ -2,8 +2,10 @@ package render
 
 import (
 	"bytes"
+	"embed"
 	"errors"
 	"fmt"
+	"io/fs"
 	"strconv"
 	"strings"
 
@@ -39,7 +41,10 @@ var functions = template.FuncMap{
 }
 
 var app *config.AppConfig
-var pathToTemplates = "./app/templates"
+var pathToTemplates = "templates"
+
+//go:embed templates
+var indexHTML embed.FS
 
 func Add(a, b int) int {
 	return a + b
@@ -246,25 +251,25 @@ func CreateTemplateCache() (map[string]*template.Template, error) {
 
 	myCache := map[string]*template.Template{}
 
-	pages, err := filepath.Glob(fmt.Sprintf("%s/*.page.html", pathToTemplates))
+	pages, err := fs.Glob(indexHTML, fmt.Sprintf("%s/*.page.html", pathToTemplates))
 	if err != nil {
 		return myCache, err
 	}
 
 	for _, page := range pages {
 		name := filepath.Base(page)
-		ts, err := template.New(name).Funcs(functions).ParseFiles(page)
+		ts, err := template.New(name).Funcs(functions).ParseFS(indexHTML, page)
 		if err != nil {
 			return myCache, err
 		}
 
-		matches, err := filepath.Glob(fmt.Sprintf("%s/*.layout.html", pathToTemplates))
+		matches, err := fs.Glob(indexHTML, fmt.Sprintf("%s/*.layout.html", pathToTemplates))
 		if err != nil {
 			return myCache, err
 		}
 
 		if len(matches) > 0 {
-			ts, err = ts.ParseGlob(fmt.Sprintf("%s/*.layout.html", pathToTemplates))
+			ts, err = ts.ParseFS(indexHTML, fmt.Sprintf("%s/*.layout.html", pathToTemplates))
 			if err != nil {
 				return myCache, err
 			}

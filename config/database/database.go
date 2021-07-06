@@ -1,17 +1,22 @@
 package database
 
 import (
+	"embed"
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/golang-migrate/migrate/v4/source/httpfs"
 	"github.com/jmoiron/sqlx"
 )
 
 // DB is the underlying database connection
 var DB *sqlx.DB
+
+//go:embed migrations
+var migrations embed.FS
 
 // Connect initiate the database connection and migrate all the tables
 func Connect(dsn string) {
@@ -30,9 +35,8 @@ func Connect(dsn string) {
 
 // Migrate migrates all the database tables
 func Migrate(dsn string) error {
-	m, err := migrate.New(
-		"file://config/database/migrations",
-		dsn)
+	source, _ := httpfs.New(http.FS(migrations), "migrations")
+	m, err := migrate.NewWithSourceInstance("httpfs", source, dsn)
 	if err != nil {
 		return err
 	}
