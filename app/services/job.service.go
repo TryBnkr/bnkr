@@ -1,6 +1,7 @@
 package services
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -409,6 +410,7 @@ type BackupCommon struct {
 	Msg           types.MailData
 	FailedStatus  string
 	SuccessStatus string
+	StartedAt     time.Time
 }
 
 func (m *Repository) PrepareBackup(b *types.NewBackupDTO, backupName string, s3FullPath string) BackupCommon {
@@ -463,6 +465,7 @@ func (m *Repository) PrepareBackup(b *types.NewBackupDTO, backupName string, s3F
 		Msg:           msg,
 		FailedStatus:  "fail",
 		SuccessStatus: "success",
+		StartedAt:     time.Now(),
 	}
 }
 
@@ -479,7 +482,7 @@ func (m *Repository) TerminateBackup(message string, status string, commons *Bac
 	}
 
 	os.RemoveAll(commons.Dir)
-	return Repo.SaveJob(commons.S3FullPath, status, b)
+	return Repo.SaveJob(commons, status, b)
 }
 
 func (m *Repository) TerminateRestore(message string, status string, commons *BackupCommon, b *types.NewBackupDTO, err error) error {
@@ -816,13 +819,17 @@ func (m *Repository) MongoDbBackup(b *types.NewBackupDTO, sendMail bool) (*dal.J
 	return Repo.TerminateBackup("", commons.SuccessStatus, &commons, b, sendMail)
 }
 
-func (m *Repository) SaveJob(file string, status string, b *types.NewBackupDTO) (*dal.Job, error) {
+func (m *Repository) SaveJob(commons *BackupCommon, status string, b *types.NewBackupDTO) (*dal.Job, error) {
 	o := &dal.Job{
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-		File:      file,
-		Status:    status,
-		Backup:    b.ID,
+		CreatedAt: commons.StartedAt,
+		UpdatedAt: commons.StartedAt,
+		File:      commons.S3FullPath,
+		CompletedAt: sql.NullTime{
+			Time:  time.Now(),
+			Valid: true,
+		},
+		Status: status,
+		Backup: b.ID,
 	}
 
 	if _, err := dal.CreateJob(o); err != nil {

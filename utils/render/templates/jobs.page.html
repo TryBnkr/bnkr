@@ -31,7 +31,7 @@
     <template x-if="!deletedItems.includes({{.ID}})">
       <tr>
         <th scope="row">{{.ID}}</th>
-        <td>{{humanTimezonedDate .CreatedAt.Time $backup.Timezone}}</td>
+        <td><div>{{humanTimezonedDate .CreatedAt.Time $backup.Timezone}}</div>{{if eq .CompletedAt.Valid true}}<span class="text-secondary">Duration: <span x-text="getDuration('{{formatDate .CreatedAt.Time "2006-01-02T15:04:05-0700"}}', '{{formatDate .CompletedAt.Time "2006-01-02T15:04:05-0700"}}')"></span></span>{{end}}</td>
         <td><a href="#" title="Click to download" @click.prevent="download({{.ID}})"><code>{{.File}}</code></a></td>
         <td>{{if eq .Status "success"}}<span class="badge rounded-pill bg-success">Success</span>{{else}}<span class="badge rounded-pill bg-danger">Fail</span>{{end}}</td>
         <td>
@@ -63,6 +63,12 @@
       spinner: '<span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span> In progress...',
       restoringItems: [],
       deletedItems: [],
+      getDuration(createdAt, completedAt) {
+        var start = moment(new Date(createdAt));
+        var end = moment(new Date(completedAt));
+        var duration = moment.duration(end.diff(start));
+        return duration.humanize();
+      },
       download(id) {
         fetch('/json/jobs/download/'+id+'/{{$backup.ID}}', {
           method: "post",

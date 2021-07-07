@@ -9,18 +9,19 @@ import (
 
 // Job struct defines the Job Model
 type Job struct {
-	ID        int       `db:"id"`
-	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
-	File      string    `db:"file"`
-	Status    string    `db:"status"`
-	Backup    int       `db:"backup"`
+	ID          int          `db:"id"`
+	CreatedAt   time.Time    `db:"created_at"`
+	UpdatedAt   time.Time    `db:"updated_at"`
+	CompletedAt sql.NullTime `db:"completed_at"`
+	File        string       `db:"file"`
+	Status      string       `db:"status"`
+	Backup      int          `db:"backup"`
 }
 
 // CreateJob create a job entry in the job's table
 func CreateJob(job *Job) (sql.Result, error) {
-	result, err := database.DB.NamedExec(`INSERT INTO jobs (created_at, updated_at, file, status, backup)
-	VALUES (:created_at, :updated_at, :file, :status, :backup)`, *job)
+	result, err := database.DB.NamedExec(`INSERT INTO jobs (created_at, updated_at, completed_at, file, status, backup)
+	VALUES (:created_at, :updated_at, :completed_at, :file, :status, :backup)`, *job)
 
 	return result, err
 }
