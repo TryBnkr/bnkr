@@ -16,6 +16,7 @@ import (
 	"github.com/MohammedAl-Mahdawi/bnkr/app/types"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/forms"
+	"github.com/MohammedAl-Mahdawi/bnkr/utils/paginator"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/render"
 
 	guuid "github.com/google/uuid"
@@ -187,6 +188,7 @@ func (m *Repository) GetRunningBackups(w http.ResponseWriter, r *http.Request) {
 
 func (m *Repository) GetJobsByBackup(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
+	page, _ := strconv.Atoi(r.URL.Query().Get("p"))
 
 	backup := &types.NewBackupDTO{}
 	if err := dal.FindBackupById(backup, id); err != nil {
@@ -194,8 +196,25 @@ func (m *Repository) GetJobsByBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var jobsCount int
+	if err := dal.Count(&jobsCount, "jobs", "backup="+strconv.Itoa(id)); err != nil {
+		utils.ServerError(w, err)
+		return
+	}
+
+	cp := 1
+	if page > 1 {
+		cp = page
+	}
+
+	p := &paginator.Paginator{
+		CurrentPage: cp,
+		PerPage:     20,
+		TotalCount:  jobsCount,
+	}
+
 	jobs := &[]types.NewJobDTO{}
-	if err := dal.FindJobsByBackup(jobs, id, "created_at desc"); err != nil {
+	if err := dal.FindJobsByBackup(jobs, id, "created_at desc", p); err != nil {
 		utils.ServerError(w, err)
 		return
 	}
@@ -203,6 +222,7 @@ func (m *Repository) GetJobsByBackup(w http.ResponseWriter, r *http.Request) {
 	data := make(map[string]interface{})
 	data["jobs"] = jobs
 	data["backup"] = backup
+	data["pagination"] = p
 	render.Template(w, r, "jobs.page.html", &types.TemplateData{
 		Data: data,
 	})
@@ -301,7 +321,7 @@ func (m *Repository) DeleteS3Object(b *types.NewBackupDTO, j *types.NewJobDTO) e
 func (m *Repository) DeleteExtraBackups(b *types.NewBackupDTO) error {
 	jobs := &[]types.NewJobDTO{}
 
-	if err := dal.FindJobsByBackup(jobs, b.ID, "created_at asc"); err != nil {
+	if err := dal.FindAllJobsByBackup(jobs, b.ID, "created_at asc"); err != nil {
 		return err
 	}
 

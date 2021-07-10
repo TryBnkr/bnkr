@@ -2,9 +2,11 @@ package dal
 
 import (
 	"database/sql"
+	"strconv"
 	"time"
 
 	"github.com/MohammedAl-Mahdawi/bnkr/config/database"
+	"github.com/MohammedAl-Mahdawi/bnkr/utils/paginator"
 )
 
 // Job struct defines the Job Model
@@ -26,7 +28,15 @@ func CreateJob(job *Job) (sql.Result, error) {
 	return result, err
 }
 
-func FindJobsByBackup(dest interface{}, backupIden interface{}, order string) error {
+func FindAllJobsByBackup(dest interface{}, backupIden interface{}, order string) error {
+	return database.DB.Select(dest, "SELECT * FROM jobs WHERE backup=$1 ORDER BY "+order, backupIden)
+}
+
+func FindJobsByBackup(dest interface{}, backupIden interface{}, order string, p *paginator.Paginator) error {
+	return database.DB.Select(dest, "SELECT * FROM jobs WHERE backup=$1 ORDER BY "+order+" LIMIT "+strconv.Itoa(p.PerPage)+" OFFSET "+strconv.Itoa(p.Offset()), backupIden)
+}
+
+func SelectPaginatedJobsByBackup(dest interface{}, backupIden interface{}, order string) error {
 	return database.DB.Select(dest, "SELECT * FROM jobs WHERE backup=$1 ORDER BY "+order, backupIden)
 }
 

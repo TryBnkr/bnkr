@@ -3,6 +3,7 @@
 {{define "content"}}
 {{$jobs := index .Data "jobs"}}
 {{$backup := index .Data "backup"}}
+{{$pagination := index .Data "pagination"}}
 <input type="hidden" id="csrf_token" name="csrf_token" value="{{.CSRFToken}}">
 <div class="card border-dark mb-3">
   <div class="card-header d-flex justify-content-between"><span>Backup details</span><a href="/backups/{{$backup.ID}}"
@@ -54,6 +55,32 @@
     {{end}}
   </tbody>
 </table>
+{{if gt $pagination.TotalPages 1}}
+<nav class="container" aria-label="Pagination">
+  <ul class="pagination d-flex flex-wrap">
+    <li class="page-item {{if eq $pagination.HasPreviousPage false}}disabled{{end}}">
+      {{if eq $pagination.HasPreviousPage true}}
+      <a class="page-link" href="/jobs/backups/{{$backup.ID}}?p={{$pagination.PreviousPage}}">Previous</a>
+      {{else}}
+      <span class="page-link">Previous</span>
+      {{end}}
+    </li>
+    {{range $page := iterate $pagination.TotalPages}}
+      {{$p := (add $page 1)}}
+      <li class="page-item {{if eq $p $pagination.CurrentPage}}active{{end}}">
+        {{if eq $p $pagination.CurrentPage}}<span class="page-link">{{$p}}</span>{{else}}<a class="page-link" href="/jobs/backups/{{$backup.ID}}?p={{$p}}">{{$p}}</a>{{end}}
+      </li>
+    {{end}}
+    <li class="page-item {{if eq $pagination.HasNextPage false}}disabled{{end}}">
+      {{if eq $pagination.HasNextPage true}}
+      <a class="page-link" href="/jobs/backups/{{$backup.ID}}?p={{$pagination.NextPage}}">Next</a>
+      {{else}}
+      <span class="page-link">Next</span>
+      {{end}}
+    </li>
+  </ul>
+</nav>
+{{end}}
 {{end}}
 {{define "js"}}
 {{$backup := index .Data "backup"}}
