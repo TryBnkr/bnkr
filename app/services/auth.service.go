@@ -35,7 +35,7 @@ func NewHandlers(r *Repository) {
 }
 
 func (m *Repository) GetLogin(w http.ResponseWriter, r *http.Request) {
-	render.Template(w, r, "login.page.html", &types.TemplateData{
+	render.Template(w, r, "login.page.tmpl", &types.TemplateData{
 		Form: forms.New(nil),
 	})
 }
@@ -71,7 +71,7 @@ func (m *Repository) PostLogin(w http.ResponseWriter, r *http.Request) {
 	data["values"] = values
 
 	if !form.Valid() {
-		render.Template(w, r, "login.page.html", &types.TemplateData{
+		render.Template(w, r, "login.page.tmpl", &types.TemplateData{
 			Form: form,
 			Data: data,
 		})
@@ -85,7 +85,7 @@ func (m *Repository) PostLogin(w http.ResponseWriter, r *http.Request) {
 
 	if errors.Is(err2, sql.ErrNoRows) {
 		m.App.Session.Put(r.Context(), "error", "The email address or password you entered is incorrect, please try again.")
-		render.Template(w, r, "login.page.html", &types.TemplateData{
+		render.Template(w, r, "login.page.tmpl", &types.TemplateData{
 			Form: form,
 			Data: data,
 		})
@@ -94,7 +94,7 @@ func (m *Repository) PostLogin(w http.ResponseWriter, r *http.Request) {
 
 	if err2 := password.Verify(u.Password, pass); err2 != nil {
 		m.App.Session.Put(r.Context(), "error", "The email address or password you entered is incorrect, please try again.")
-		render.Template(w, r, "login.page.html", &types.TemplateData{
+		render.Template(w, r, "login.page.tmpl", &types.TemplateData{
 			Form: form,
 			Data: data,
 		})

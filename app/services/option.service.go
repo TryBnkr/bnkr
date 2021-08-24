@@ -26,7 +26,7 @@ func (m *Repository) GetOptions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data["values"] = values
-	render.Template(w, r, "options.page.html", &types.TemplateData{
+	render.Template(w, r, "options.page.tmpl", &types.TemplateData{
 		Form: forms.New(nil),
 		Data: data,
 	})
@@ -67,7 +67,7 @@ func (m *Repository) PostOptions(w http.ResponseWriter, r *http.Request) {
 	data["values"] = values
 
 	if !form.Valid() {
-		render.Template(w, r, "options.page.html", &types.TemplateData{
+		render.Template(w, r, "options.page.tmpl", &types.TemplateData{
 			Form: form,
 			Data: data,
 		})
@@ -83,7 +83,7 @@ func (m *Repository) PostOptions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	m.App.Session.Put(r.Context(), "flash", "Options updated!")
-	render.Template(w, r, "options.page.html", &types.TemplateData{
+	render.Template(w, r, "options.page.tmpl", &types.TemplateData{
 		Form: form,
 		Data: data,
 	})

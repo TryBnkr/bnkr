@@ -27,7 +27,7 @@ func (m *Repository) GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	data := make(map[string]interface{})
 	data["users"] = users
-	render.Template(w, r, "users.page.html", &types.TemplateData{
+	render.Template(w, r, "users.page.tmpl", &types.TemplateData{
 		Data: data,
 	})
 }
@@ -50,7 +50,7 @@ func (m *Repository) GetNewUser(w http.ResponseWriter, r *http.Request) {
 		data["values"] = values
 	}
 
-	render.Template(w, r, "users.new.page.html", &types.TemplateData{
+	render.Template(w, r, "users.new.page.tmpl", &types.TemplateData{
 		Form: forms.New(nil),
 		Data: data,
 	})
@@ -108,7 +108,7 @@ func (m *Repository) PostNewUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !form.Valid() {
-		render.Template(w, r, "users.new.page.html", &types.TemplateData{
+		render.Template(w, r, "users.new.page.tmpl", &types.TemplateData{
 			Form: form,
 			Data: data,
 		})
@@ -138,7 +138,7 @@ func (m *Repository) PostNewUser(w http.ResponseWriter, r *http.Request) {
 		if _, err := dal.CreateUser(d); err != nil {
 			if utils.IsDuplicateKeyError(err) {
 				form.Errors.Add("email", "User already exist!")
-				render.Template(w, r, "users.new.page.html", &types.TemplateData{
+				render.Template(w, r, "users.new.page.tmpl", &types.TemplateData{
 					Form: form,
 					Data: data,
 				})

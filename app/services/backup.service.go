@@ -43,7 +43,7 @@ func (m *Repository) GetBackups(w http.ResponseWriter, r *http.Request) {
 	data["backups"] = backups
 	data["jobs"] = jobs
 	data["nextOcc"] = ce
-	render.Template(w, r, "backups.page.html", &types.TemplateData{
+	render.Template(w, r, "backups.page.tmpl", &types.TemplateData{
 		Data: data,
 	})
 }
@@ -106,7 +106,7 @@ func (m *Repository) GetNewBackup(w http.ResponseWriter, r *http.Request) {
 	data["timezones"] = utils.GetTimeZones()
 	data["times"] = utils.GetTimes()
 
-	render.Template(w, r, "backups.new.page.html", &types.TemplateData{
+	render.Template(w, r, "backups.new.page.tmpl", &types.TemplateData{
 		Form: forms.New(nil),
 		Data: data,
 	})
@@ -266,7 +266,7 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 	data["times"] = utils.GetTimes()
 
 	if !form.Valid() {
-		render.Template(w, r, "backups.new.page.html", &types.TemplateData{
+		render.Template(w, r, "backups.new.page.tmpl", &types.TemplateData{
 			Form: form,
 			Data: data,
 		})

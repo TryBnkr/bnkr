@@ -223,7 +223,7 @@ func (m *Repository) GetJobsByBackup(w http.ResponseWriter, r *http.Request) {
 	data["jobs"] = jobs
 	data["backup"] = backup
 	data["pagination"] = p
-	render.Template(w, r, "jobs.page.html", &types.TemplateData{
+	render.Template(w, r, "jobs.page.tmpl", &types.TemplateData{
 		Data: data,
 	})
 }
@@ -242,7 +242,7 @@ func (m *Repository) GetNewJob(w http.ResponseWriter, r *http.Request) {
 		data["values"] = job
 	}
 
-	render.Template(w, r, "jobs.new.page.html", &types.TemplateData{
+	render.Template(w, r, "jobs.new.page.tmpl", &types.TemplateData{
 		Form: forms.New(nil),
 		Data: data,
 	})

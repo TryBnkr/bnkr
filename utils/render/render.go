@@ -251,7 +251,7 @@ func CreateTemplateCache() (map[string]*template.Template, error) {
 
 	myCache := map[string]*template.Template{}
 
-	pages, err := fs.Glob(indexHTML, fmt.Sprintf("%s/*.page.html", pathToTemplates))
+	pages, err := fs.Glob(indexHTML, fmt.Sprintf("%s/*.page.tmpl", pathToTemplates))
 	if err != nil {
 		return myCache, err
 	}
@@ -263,13 +263,13 @@ func CreateTemplateCache() (map[string]*template.Template, error) {
 			return myCache, err
 		}
 
-		matches, err := fs.Glob(indexHTML, fmt.Sprintf("%s/*.layout.html", pathToTemplates))
+		matches, err := fs.Glob(indexHTML, fmt.Sprintf("%s/*.layout.tmpl", pathToTemplates))
 		if err != nil {
 			return myCache, err
 		}
 
 		if len(matches) > 0 {
-			ts, err = ts.ParseFS(indexHTML, fmt.Sprintf("%s/*.layout.html", pathToTemplates))
+			ts, err = ts.ParseFS(indexHTML, fmt.Sprintf("%s/*.layout.tmpl", pathToTemplates))
 			if err != nil {
 				return myCache, err
 			}
