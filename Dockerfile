@@ -26,7 +26,7 @@ RUN rm ./mongodb-tools.deb
 RUN echo "deb http://apt.postgresql.org/pub/repos/apt focal-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 RUN wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
 RUN apt update
-RUN apt apt -y install postgresql-13
+RUN apt -y install postgresql-13
 
 RUN apt clean && rm -rf /var/lib/apt/lists/*
 
