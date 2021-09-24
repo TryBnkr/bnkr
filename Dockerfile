@@ -10,7 +10,7 @@ ARG TARGETPLATFORM
 
 RUN apt update
 
-RUN apt install curl -y
+RUN apt install curl wget -y
 
 # Install kubectl binary
 RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/${TARGETPLATFORM}/kubectl"
@@ -22,8 +22,11 @@ RUN if [ $TARGETPLATFORM = "linux/amd64" ]; then curl https://fastdl.mongodb.org
 RUN apt install ./mongodb-tools.deb -y
 RUN rm ./mongodb-tools.deb
 
-# Install PostgresQL
-RUN DEBIAN_FRONTEND=noninteractive apt install --no-install-recommends postgresql postgresql-contrib -y
+# Install PostgresQL 13
+RUN echo "deb http://apt.postgresql.org/pub/repos/apt focal-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+RUN wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+RUN apt update
+RUN apt apt -y install postgresql-13
 
 RUN apt clean && rm -rf /var/lib/apt/lists/*
 

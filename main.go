@@ -47,13 +47,15 @@ func main() {
 	session.Cookie.Secure = isProduction
 
 	app.Session = session
-	app.Version = "1.5.2"
+	app.Version = "1.5.3"
 
 	app.Cron = cron.New()
 
-	app.DbUri = "postgres://" + os.Getenv("DB_USER") + ":" + os.Getenv("DB_PASSWORD") + "@" + os.Getenv("DB_HOST") + ":" + os.Getenv("DB_PORT") + "/" + os.Getenv("DB_NAME") + "?sslmode=" + os.Getenv("DB_SSLMODE") + "&TimeZone=" + os.Getenv("DB_TIMEZONE")
-	database.Migrate(app.DbUri)
-	database.Connect(app.DbUri)
+	app.DbUri = "postgres://" + os.Getenv("DB_USER") + ":" + os.Getenv("DB_PASSWORD") + "@" + os.Getenv("DB_HOST") + ":" + os.Getenv("DB_PORT") + "/" + os.Getenv("DB_NAME") + "?sslmode=" + os.Getenv("DB_SSLMODE")
+
+	dbUri := app.DbUri + "&TimeZone=" + os.Getenv("DB_TIMEZONE")
+	database.Migrate(dbUri)
+	database.Connect(dbUri)
 	// TODO close db connection
 
 	tc, err := render.CreateTemplateCache()
