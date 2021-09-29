@@ -61,6 +61,12 @@ func routes(app *config.AppConfig) http.Handler {
 		mux.Get("/{id}", services.Repo.GetNewBackup)
 	})
 
+	mux.Route("/migrations", func(mux chi.Router) {
+		mux.Use(pm.Auth)
+		mux.Get("/", services.Repo.GetMigrations)
+		mux.Get("/new", services.Repo.GetNewMigration)
+	})
+
 	mux.Route("/json", func(mux chi.Router) {
 		mux.Use(pm.CsrfVerifier)
 		mux.Use(pm.Auth)
