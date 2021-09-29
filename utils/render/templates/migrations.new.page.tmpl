@@ -1,0 +1,344 @@
+{{template "base" .}}
+
+{{define "content"}}
+{{$res := index .Data "values"}}
+{{$timezones := index .Data "timezones"}}
+<form x-data="newMigration()" action="/migrations/{{with index .Data "id"}}{{.}}{{else}}new{{end}}" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <div class="mb-3">
+        <label for="exampleInputMigrationName1" class="form-label">Name</label>
+        <input name="migrationName" class="form-control {{if .Form.Errors.Get "migrationName"}} is-invalid {{else if
+            .Form.Has "migrationName" }} is-valid {{end}}" value="{{$res.Name}}" id="exampleInputMigrationName1"
+            aria-describedby="migrationNameHelp">
+        {{with .Form.Errors.Get "migrationName"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div class="mb-3">
+        <label for="exampleInputTimezone1" class="form-label">Timezone</label>
+        <select id="migration-timezone" name="timezone" class="form-select {{if .Form.Errors.Get "timezone"}} is-invalid {{else if
+            .Form.Has "timezone" }} is-valid {{end}}" aria-label="Default select example">
+            {{range $timezone := $timezones}}
+            <option value="{{$timezone}}" {{with $res.Timezone}}{{if eq $res.Timezone $timezone }}selected{{end}}{{end}}>{{$timezone}}</option>
+            {{end}}
+        </select>
+        {{with .Form.Errors.Get "timezone"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div class="mb-3">
+        <label for="exampleInputFrequency1" class="form-label">Frequency</label>
+        <select x-model="frequency" id="frequency" name="frequency" class="form-select {{if .Form.Errors.Get "frequency"}} is-invalid {{else if
+            .Form.Has "frequency" }} is-valid {{end}}" aria-label="Default select example">
+            <option value="@hourly" {{with $res.Frequency}}{{if eq . "@hourly" }}selected{{end}}{{end}}>
+                Hourly</option>
+            <option value="@daily" {{with $res.Frequency}}{{if eq . "@daily" }}selected{{end}}{{end}}>Daily
+            </option>
+            <option value="@weekly" {{with $res.Frequency}}{{if eq . "@weekly" }}selected{{end}}{{end}}>
+                Weekly</option>
+            <option value="@monthly" {{with $res.Frequency}}{{if eq . "@monthly" }}selected{{end}}{{end}}>
+                Monthly</option>
+            <option value="@yearly" {{with $res.Frequency}}{{if eq . "@yearly" }}selected{{end}}{{end}}>
+                Yearly</option>
+            <option value="custom" {{with $res.Frequency}}{{if eq . "custom" }}selected{{end}}{{end}}>
+                Custom</option>
+        </select>
+        {{with .Form.Errors.Get "frequency"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div x-show="frequency=='custom'" class="mb-3 customFrequency">
+        <label for="exampleInputCustomFrequency1" class="form-label">Custom Frequency</label>
+        <input x-model="customFrequency" name="customFrequency" class="form-control {{if .Form.Errors.Get "customFrequency"}} is-invalid {{else if
+            .Form.Has "customFrequency" }} is-valid {{end}}" value="{{$res.CustomFrequency}}" id="exampleInputCustomFrequency1"
+            aria-describedby="customFrequencyHelp">
+        {{with .Form.Errors.Get "customFrequency"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+        <div id="customFrequencyHelp" class="form-text" x-text="textCron()">
+        </div>
+    </div>
+    <div x-show="frequency=='@weekly'" class="mb-3">
+        <label for="exampleInputDayOfWeek1" class="form-label">Day of Week</label>
+        <select id="migration-dayOfWeek" name="dayOfWeek" class="form-select {{if .Form.Errors.Get "dayOfWeek"}} is-invalid {{else if
+            .Form.Has "dayOfWeek" }} is-valid {{end}}" aria-label="Default select example">
+            {{range $dayOfWeek := iterate 7}}
+            <option value="{{$dayOfWeek}}" {{if eWZANV $dayOfWeek $res.DayOfWeek}}selected{{end}}>{{dayName $dayOfWeek}}</option>
+            {{end}}
+        </select>
+        {{with .Form.Errors.Get "dayOfWeek"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div x-show="frequency=='@yearly'" class="mb-3">
+        <label for="exampleInputMonth1" class="form-label">Month</label>
+        <select id="migration-month" name="month" class="form-select {{if .Form.Errors.Get "month"}} is-invalid {{else if
+            .Form.Has "month" }} is-valid {{end}}" aria-label="Default select example">
+            {{range $month := iterate 12}}
+            <option value="{{add $month 1}}" {{with $res.Month}}{{if eq $res.Month (add $month 1) }}selected{{end}}{{end}}>{{monthName (add $month 1)}}</option>
+            {{end}}
+        </select>
+        {{with .Form.Errors.Get "month"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div x-show="frequency=='@monthly' || frequency=='@yearly'" class="mb-3">
+        <label for="exampleInputDayOfMonth1" class="form-label">Day of Month</label>
+        <select id="migration-dayOfMonth" name="dayOfMonth" class="form-select {{if .Form.Errors.Get "dayOfMonth"}} is-invalid {{else if
+            .Form.Has "dayOfMonth" }} is-valid {{end}}" aria-label="Default select example">
+            {{range $dayOfMonth := iterate 31}}
+            <option value="{{add $dayOfMonth 1}}" {{with $res.DayOfMonth}}{{if eq $res.DayOfMonth (add $dayOfMonth 1) }}selected{{end}}{{end}}>{{add $dayOfMonth 1}}</option>
+            {{end}}
+        </select>
+        {{with .Form.Errors.Get "dayOfMonth"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div class="mb-3">
+        <label for="exampleInputType1" class="form-label">Type</label>
+        <select x-model="type" id="migration-type" name="type" class="form-select {{if .Form.Errors.Get "type"}} is-invalid {{else if
+            .Form.Has "type" }} is-valid {{end}}" aria-label="Default select example">
+            <option value="db" {{with $res.Type}}{{if eq $res.Type "db" }}selected{{end}}{{end}}>MySQL/MariaDB Database</option>
+            <option value="object" {{with $res.Type}}{{if eq $res.Type "object" }}selected{{end}}{{end}}>Files In Deployment or StatefulSet</option>
+            <option value="pod" {{with $res.Type}}{{if eq $res.Type "pod" }}selected{{end}}{{end}}>Files In Pod</option>
+            <option value="mongo" {{with $res.Type}}{{if eq $res.Type "mongo" }}selected{{end}}{{end}}>MongoDB</option>
+            <option value="pg" {{with $res.Type}}{{if eq $res.Type "pg" }}selected{{end}}{{end}}>PostgreSQL</option>
+            <option value="bnkr" {{with $res.Type}}{{if eq $res.Type "bnkr" }}selected{{end}}{{end}}>Bnkr DB</option>
+        </select>
+        {{with .Form.Errors.Get "type"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div x-show="type=='mongo' || type=='pg'" class="mb-3">
+        <label for="exampleInputURI1" class="form-label">URI</label>
+        <input name="uri" class="form-control {{if .Form.Errors.Get "uri"}} is-invalid {{else if
+            .Form.Has "uri" }} is-valid {{end}}" value="{{with $res.URI.Valid}}{{$res.URI.String}}{{end}}" id="exampleInputURI1"
+            aria-describedby="uriHelp">
+        {{with .Form.Errors.Get "uri"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div x-show="type=='db'" class="mb-3">
+        <label for="exampleInputDBName1" class="form-label">Database Name</label>
+        <input name="dbName" class="form-control {{if .Form.Errors.Get "dbName"}} is-invalid {{else if
+            .Form.Has "dbName" }} is-valid {{end}}" value="{{$res.DbName}}" id="exampleInputDBName1"
+            aria-describedby="dbNameHelp">
+        {{with .Form.Errors.Get "dbName"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div x-show="type=='db'" class="mb-3">
+        <label for="exampleInputDBUser1" class="form-label">Database User</label>
+        <input name="dbUser" class="form-control {{if .Form.Errors.Get "dbUser"}} is-invalid {{else if
+            .Form.Has "dbUser" }} is-valid {{end}}" value="{{$res.DbUser}}" id="exampleInputDBUser1"
+            aria-describedby="dbUserHelp">
+        {{with .Form.Errors.Get "dbUser"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div x-show="type=='db'" class="mb-3">
+        <label for="exampleInputDBPassword1" class="form-label">Database Password</label>
+        <input name="dbPassword" class="form-control {{if .Form.Errors.Get "dbPassword"}} is-invalid {{else if
+            .Form.Has "dbPassword" }} is-valid {{end}}" value="{{$res.DbPassword}}" id="exampleInputDBPassword1"
+            aria-describedby="dbPasswordHelp">
+        {{with .Form.Errors.Get "dbPassword"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div x-show="type=='db'" class="mb-3">
+        <label for="exampleInputDBHost1" class="form-label">Database Host</label>
+        <input name="dbHost" class="form-control {{if .Form.Errors.Get "dbHost"}} is-invalid {{else if
+            .Form.Has "dbHost" }} is-valid {{end}}" value="{{$res.DbHost}}" id="exampleInputDBHost1"
+            aria-describedby="dbHostHelp">
+        {{with .Form.Errors.Get "dbHost"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div x-show="type=='db'" class="mb-3">
+        <label for="exampleInputDBPort1" class="form-label">Database Port</label>
+        <input name="dbPort" class="form-control {{if .Form.Errors.Get "dbPort"}} is-invalid {{else if
+            .Form.Has "dbPort" }} is-valid {{end}}" value="{{$res.DbPort}}" id="exampleInputDBPort1"
+            aria-describedby="dbPortHelp">
+        {{with .Form.Errors.Get "dbPort"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div class="mb-3" x-show="type=='object'">
+        <label for="exampleInputPodLabel1" class="form-label">Label To Find Pod</label>
+        <input name="podLabel" class="form-control {{if .Form.Errors.Get "podLabel"}} is-invalid {{else if
+            .Form.Has "podLabel" }} is-valid {{end}}" value="{{$res.PodLabel}}" id="exampleInputPodLabel1"
+            aria-describedby="podLabelHelp">
+        {{with .Form.Errors.Get "podLabel"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+        <div id="podLabelHelp" class="form-text">The label of the pod that we are going to migration the files inside its container, please use <code>=</code> with no space so <code>app: bnkr</code> become <code>app=bnkr</code>.
+        </div>
+    </div>
+    <div class="mb-3" x-show="type=='pod'">
+        <label for="exampleInputPodName1" class="form-label">Pod Name</label>
+        <input name="podName" class="form-control {{if .Form.Errors.Get "podName"}} is-invalid {{else if
+            .Form.Has "podName" }} is-valid {{end}}" value="{{$res.PodName}}" id="exampleInputPodName1"
+            aria-describedby="podNameHelp">
+        {{with .Form.Errors.Get "podName"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+        <div id="podNameHelp" class="form-text">The pod that we are going to migration the files inside it.
+        </div>
+    </div>
+    <div class="mb-3" x-show="type=='object' || type=='pod'">
+        <label for="exampleInputContainer1" class="form-label">Container</label>
+        <input name="container" class="form-control {{if .Form.Errors.Get "container"}} is-invalid {{else if
+            .Form.Has "container" }} is-valid {{end}}" value="{{$res.Container}}" id="exampleInputContainer1"
+            aria-describedby="containerHelp">
+        {{with .Form.Errors.Get "container"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+        <div id="containerHelp" class="form-text">The container that we are going to migration the files inside it.
+        </div>
+    </div>
+    <div class="mb-3" x-show="type=='object' || type=='pod'">
+        <label for="exampleInputFilesPath1" class="form-label">Files Path</label>
+        <input name="filesPath" class="form-control {{if .Form.Errors.Get "filesPath"}} is-invalid {{else if
+            .Form.Has "filesPath" }} is-valid {{end}}" value="{{$res.FilesPath}}" id="exampleInputFilesPath1"
+            aria-describedby="filesPathHelp">
+        {{with .Form.Errors.Get "filesPath"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+        <div id="filesPathHelp" class="form-text">The folder path inside the container.</div>
+    </div>
+    <div class="mb-3">
+        <label for="exampleInputAccessKey1" class="form-label">S3 Access Key</label>
+        <input name="accessKey" class="form-control {{if .Form.Errors.Get "accessKey"}} is-invalid {{else if
+            .Form.Has "accessKey" }} is-valid {{end}}" value="{{$res.S3AccessKey}}" id="exampleInputAccessKey1"
+            aria-describedby="accessKeyHelp">
+        {{with .Form.Errors.Get "accessKey"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div class="mb-3">
+        <label for="exampleInputSecretKey1" class="form-label">S3 Secret Key</label>
+        <input name="secretKey" class="form-control {{if .Form.Errors.Get "secretKey"}} is-invalid {{else if
+            .Form.Has "secretKey" }} is-valid {{end}}" value="{{$res.S3SecretKey}}" id="exampleInputSecretKey1"
+            aria-describedby="secretKeyHelp">
+        {{with .Form.Errors.Get "secretKey"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div class="mb-3">
+        <label for="exampleInputRegion1" class="form-label">Region</label>
+        <input name="region" class="form-control {{if .Form.Errors.Get "region"}} is-invalid {{else if
+            .Form.Has "region" }} is-valid {{end}}" value="{{$res.Region}}" id="exampleInputRegion1"
+            aria-describedby="regionHelp">
+        {{with .Form.Errors.Get "region"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div class="mb-3">
+        <label for="exampleInputBucket1" class="form-label">Bucket</label>
+        <input name="bucket" class="form-control {{if .Form.Errors.Get "bucket"}} is-invalid {{else if
+            .Form.Has "bucket" }} is-valid {{end}}" value="{{$res.Bucket}}" id="exampleInputBucket1"
+            aria-describedby="bucketHelp">
+        {{with .Form.Errors.Get "bucket"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div class="mb-3">
+        <label for="exampleInputStorageDirectory1" class="form-label">Storage Directory (Optional)</label>
+        <input placeholder="2021/weekly" name="storageDirectory" class="form-control {{if .Form.Errors.Get "storageDirectory"}} is-invalid {{else
+            if .Form.Has "storageDirectory" }} is-valid {{end}}" value="{{$res.StorageDirectory}}"
+            id="exampleInputStorageDirectory1" aria-describedby="storageDirectoryHelp">
+        {{with .Form.Errors.Get "storageDirectory"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div class="mb-3">
+        <label for="exampleInputMigrationRetention1" class="form-label">Migration Retention</label>
+        <input type="number" min="1" name="migrationRetention" class="form-control {{if .Form.Errors.Get "migrationRetention"}} is-invalid {{else
+            if .Form.Has "migrationRetention" }} is-valid {{end}}" value="{{or $res.Retention 22}}"
+            id="exampleInputMigrationRetention1" aria-describedby="migrationRetentionHelp">
+        {{with .Form.Errors.Get "migrationRetention"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div class="mb-3">
+        <label for="exampleInputNotificationEmail1" class="form-label">Notification Emails (Optional)</label>
+        <input name="notificationEmail" placeholder="user1@example.com,user2@example.com" class="form-control {{if .Form.Errors.Get "notificationEmail"}} is-invalid
+            {{else if .Form.Has "notificationEmail" }} is-valid {{end}}" value="{{$res.Emails}}"
+            id="exampleInputNotificationEmail1" aria-describedby="notificationEmailHelp">
+        {{with .Form.Errors.Get "notificationEmail"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <button type="submit" class="btn btn-primary">{{with index .Data "id"}}Update{{else}}Submit{{end}}</button>
+</form>
+{{end}}
+
+{{define "js"}}
+{{$res := index .Data "values"}}
+<script>
+    function newMigration(){
+        return {
+            customFrequency: '{{with $res.Frequency}}{{if eq . "custom" }}{{$res.CustomFrequency}}{{end}}{{end}}',
+            textCron(){
+                try {
+                    return cronstrue.toString(this.customFrequency);
+                } catch (error) {
+                    return 'Standard Cron expression.';
+                }
+            },
+            type: '{{with $res.Type}}{{.}}{{else}}db{{end}}',
+            frequency:  '{{with $res.Frequency}}{{.}}{{else}}daily{{end}}'
+        }
+    }
+</script>
+{{end}}

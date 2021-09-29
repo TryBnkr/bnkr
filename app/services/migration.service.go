@@ -2,10 +2,14 @@ package services
 
 import (
 	"net/http"
-	"time"
+	"strconv"
 
+	"github.com/MohammedAl-Mahdawi/bnkr/app/dal"
+	"github.com/MohammedAl-Mahdawi/bnkr/app/types"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils"
+	"github.com/MohammedAl-Mahdawi/bnkr/utils/forms"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/render"
+	"github.com/go-chi/chi/v5"
 )
 
 func (m *Repository) GetMigrations(w http.ResponseWriter, r *http.Request) {
@@ -16,24 +20,31 @@ func (m *Repository) GetMigrations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get latest job foreach migration
-	var jobs []types.SmallJob
-	dal.SelectLatestJobForEachMigration(&jobs)
-
-	ce := make(map[int]time.Time)
-	for _, e := range m.App.Cron.Entries() {
-		for b, ci := range m.App.CronIds {
-			if ci == e.ID {
-				ce[b] = e.Next
-			}
-		}
-	}
-
 	data := make(map[string]interface{})
 	data["migrations"] = migrations
-	data["jobs"] = jobs
-	data["nextOcc"] = ce
 	render.Template(w, r, "migrations.page.tmpl", &types.TemplateData{
+		Data: data,
+	})
+}
+
+func (m *Repository) GetNewMigration(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
+	data := make(map[string]interface{})
+	if id != 0 {
+		migration := &types.NewMigrationDTO{}
+
+		if err := dal.FindMigrationById(migration, id); err != nil {
+			utils.ServerError(w, err)
+			return
+		}
+		data["id"] = id
+		data["values"] = migration
+	}
+
+	data["timezones"] = utils.GetTimeZones()
+
+	render.Template(w, r, "migrations.new.page.tmpl", &types.TemplateData{
+		Form: forms.New(nil),
 		Data: data,
 	})
 }

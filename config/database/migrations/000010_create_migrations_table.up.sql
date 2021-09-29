@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS public.migrations (
 	src_container text NULL,
 	src_pod_name text NULL,
 	src_region text NULL,
+    src_uri text NULL,
 	dest_deployment text NULL,
 	dest_files_path text NULL,
 	dest_s3_access_key text NULL,
@@ -47,6 +48,7 @@ CREATE TABLE IF NOT EXISTS public.migrations (
 	dest_pod_label text NULL,
 	dest_container text NULL,
 	dest_pod_name text NULL,
+	dest_uri text NULL,
 	CONSTRAINT migrations_pkey PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS idx_migrations_deleted_at ON public.migrations USING btree (deleted_at);

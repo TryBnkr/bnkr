@@ -1,0 +1,142 @@
+{{template "base" .}}
+
+{{define "content"}}
+{{$migrations := index .Data "migrations"}}
+{{$nextOcc := index .Data "nextOcc"}}
+<input type="hidden" id="csrf_token" name="csrf_token" value="{{.CSRFToken}}">
+<table class="table table-hover align-middle">
+  <thead>
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Migration</th>
+      <th scope="col">Timezone</th>
+      <th scope="col"></th>
+    </tr>
+  </thead>
+  <tbody x-data="tBody()">
+    {{range $migrations}}
+    <template x-if="!deletedItems.includes({{.ID}})">
+      <tr>
+        <td scope="row">{{.ID}}</td>
+        <td><a href="/jobs/migrations/{{.ID}}">{{.Name}}</a></td>
+        <td>{{.Timezone}}</td>
+        <td>
+          <button class="btn btn-success btn-sm" type="button" x-on:click="migrationNow({{.ID}})"
+            :disabled="migrations.includes({{.ID}})" x-text="migrations.includes({{.ID}}) ? 'In progress...' : 'Migration'"
+            x-html="migrations.includes({{.ID}}) ? spinner : 'Migration Now'"></button>
+          <a href="/migrations/{{.ID}}" class="btn btn-secondary btn-sm" title="Edit" role="button">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-pencil-fill"
+              viewBox="0 0 16 16">
+              <path
+                d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708l-3-3zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207l6.5-6.5zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.499.499 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11l.178-.178z">
+              </path>
+            </svg>
+          </a>
+          <button class="btn btn-info btn-sm text-light" :disabled="clones.length !== 0" x-html="clones.includes({{.ID}}) ? cloneSpinner : cloneIcon" title="Clone" @click="clone({{.ID}})">
+          </button>
+          <button class="btn btn-danger btn-sm" title="Delete" @click="deleteMigration({{.ID}})">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-x-lg"
+              viewBox="0 0 16 16">
+              <path
+                d="M1.293 1.293a1 1 0 0 1 1.414 0L8 6.586l5.293-5.293a1 1 0 1 1 1.414 1.414L9.414 8l5.293 5.293a1 1 0 0 1-1.414 1.414L8 9.414l-5.293 5.293a1 1 0 0 1-1.414-1.414L6.586 8 1.293 2.707a1 1 0 0 1 0-1.414z" />
+            </svg>
+          </button>
+        </td>
+      </tr>
+    </template>
+    {{end}}
+  </tbody>
+</table>
+{{end}}
+{{define "js"}}
+<script>
+  function tBody() {
+    return {
+      spinner: '<span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span> In progress...',
+      cloneSpinner: '<span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span>',
+      cloneIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-files" viewBox="0 0 16 16"><path d="M13 0H6a2 2 0 0 0-2 2 2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2 2 2 0 0 0 2-2V2a2 2 0 0 0-2-2zm0 13V4a2 2 0 0 0-2-2H5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1zM3 4a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4z"/></svg>',
+      deletedItems: [],
+      clones: [],
+      migrations: [],
+      migrationNow(id) {
+        fetch('/json/jobs/migration/' + id, {
+          method: "post",
+          headers: {
+            'Content-Type': 'application/json',
+            'csrf-token': document.getElementById('csrf_token').value,
+          },
+        })
+          .then(response => {
+            if (response.ok) {
+              Swal.fire(
+                'Queued!',
+                'The migration process started successfully, it is happening on the server so feel free to close or leave your browser, you will be notified by email if the migration process succeed or failed.',
+                'success'
+              )
+            } else {
+              Swal.fire(
+                'Oops...',
+                'Something went wrong!',
+                'error'
+              )
+            }
+            return response.json();
+          })
+          .then(data => {
+          })
+      },
+      clone(id) {
+        this.clones.push(id);
+        fetch('/json/migrations/clone/'+id, {
+          method: "post",
+          headers: {
+            'Content-Type': 'application/json',
+            'csrf-token': document.getElementById('csrf_token').value,
+          },
+        })
+          .then(response => {
+            if (response.ok) {
+              location.reload();
+            }
+          })
+      },
+      deleteMigration(id) {
+        Swal.fire({
+          title: 'Are you sure?',
+          text: "You won't be able to revert this!",
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#3085d6',
+          cancelButtonColor: '#d33',
+          confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            fetch('/json/migrations/' + id, {
+              method: "delete",
+              headers: {
+                'Content-Type': 'application/json',
+                'csrf-token': document.getElementById('csrf_token').value,
+              },
+            })
+              .then(response => {
+                if (!response.ok) {
+                  throw new Error("HTTP status " + response.status);
+                }
+                this.deletedItems.push(id);
+                return response.json();
+              })
+              .then(data => {
+              })
+
+            Swal.fire(
+              'Deleted!',
+              'The migration has been deleted.',
+              'success'
+            )
+          }
+        })
+      },
+    }
+  }
+</script>
+{{end}}
