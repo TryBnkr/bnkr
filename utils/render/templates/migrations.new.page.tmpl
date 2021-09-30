@@ -47,7 +47,7 @@
         </div>
         <div class="card-body">
             <div class="mb-3">
-                <label for="exampleInputSrcType1" class="form-label">SrcType</label>
+                <label for="exampleInputSrcType1" class="form-label">Type</label>
                 <select x-model="src_type" id="migration-src_type" name="src_type" class="form-select {{if .Form.Errors.Get "src_type"}} is-invalid {{else if
                     .Form.Has "src_type" }} is-valid {{end}}">
                     <option value="db" {{with $res.SrcType}}{{if eq $res.SrcType "db" }}selected{{end}}{{end}}>MySQL/MariaDB Database</option>
@@ -64,7 +64,7 @@
                 {{end}}
             </div>
             <div x-show="src_type=='mongo' || src_type=='pg'" class="mb-3">
-                <label for="exampleInputSrcURI1" class="form-label">SrcURI</label>
+                <label for="exampleInputSrcURI1" class="form-label">URI</label>
                 <input name="src_uri" class="form-control {{if .Form.Errors.Get "src_uri"}} is-invalid {{else if
                     .Form.Has "src_uri" }} is-valid {{end}}" value="{{with $res.SrcURI.Valid}}{{$res.SrcURI.String}}{{end}}" id="exampleInputSrcURI1"
                     aria-describedby="src_uriHelp">
@@ -199,7 +199,7 @@
                 </div>
             </div>
             <div class="mb-3" x-show="src_type=='object' || src_type=='pod'">
-                <label for="exampleInputSrcContainer1" class="form-label">SrcContainer</label>
+                <label for="exampleInputSrcContainer1" class="form-label">Container</label>
                 <input name="src_container" class="form-control {{if .Form.Errors.Get "src_container"}} is-invalid {{else if
                     .Form.Has "src_container" }} is-valid {{end}}" value="{{$res.SrcContainer}}" id="exampleInputSrcContainer1"
                     aria-describedby="src_containerHelp">
@@ -246,18 +246,18 @@
                 {{end}}
             </div>
             <div class="mb-3">
-                <label for="exampleInputDestRegion1" class="form-label">DestRegion</label>
-                <input name="dest_region" class="form-control {{if .Form.Errors.Get "dest_region"}} is-invalid {{else if
-                    .Form.Has "dest_region" }} is-valid {{end}}" value="{{$res.DestRegion}}" id="exampleInputDestRegion1"
-                    aria-describedby="dest_regionHelp">
-                {{with .Form.Errors.Get "dest_region"}}
+                <label for="exampleInputSrcRegion1" class="form-label">Region</label>
+                <input name="src_region" class="form-control {{if .Form.Errors.Get "src_region"}} is-invalid {{else if
+                    .Form.Has "src_region" }} is-valid {{end}}" value="{{$res.SrcRegion}}" id="exampleInputSrcRegion1"
+                    aria-describedby="src_regionHelp">
+                {{with .Form.Errors.Get "src_region"}}
                 <div class="invalid-feedback">
                     {{.}}
                 </div>
                 {{end}}
             </div>
             <div class="mb-3">
-                <label for="exampleInputSrcBucket1" class="form-label">SrcBucket</label>
+                <label for="exampleInputSrcBucket1" class="form-label">Bucket</label>
                 <input name="src_bucket" class="form-control {{if .Form.Errors.Get "src_bucket"}} is-invalid {{else if
                     .Form.Has "src_bucket" }} is-valid {{end}}" value="{{$res.SrcBucket}}" id="exampleInputSrcBucket1"
                     aria-describedby="src_bucketHelp">
