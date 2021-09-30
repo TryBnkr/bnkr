@@ -280,6 +280,245 @@
             </div>
         </div>
     </div>
+    <div class="card">
+        <div class="card-header">
+          Destination
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="exampleInputDestType1" class="form-label">Type</label>
+                <select x-model="dest_type" id="migration-dest_type" name="dest_type" class="form-select {{if .Form.Errors.Get "dest_type"}} is-invalid {{else if
+                    .Form.Has "dest_type" }} is-valid {{end}}">
+                    <option value="db" {{with $res.DestType}}{{if eq $res.DestType "db" }}selected{{end}}{{end}}>MySQL/MariaDB Database</option>
+                    <option value="object" {{with $res.DestType}}{{if eq $res.DestType "object" }}selected{{end}}{{end}}>Files In Deployment or StatefulSet</option>
+                    <option value="pod" {{with $res.DestType}}{{if eq $res.DestType "pod" }}selected{{end}}{{end}}>Files In Pod</option>
+                    <option value="mongo" {{with $res.DestType}}{{if eq $res.DestType "mongo" }}selected{{end}}{{end}}>MongoDB</option>
+                    <option value="pg" {{with $res.DestType}}{{if eq $res.DestType "pg" }}selected{{end}}{{end}}>PostgreSQL</option>
+                    <option value="bnkr" {{with $res.DestType}}{{if eq $res.DestType "bnkr" }}selected{{end}}{{end}}>Bnkr DB</option>
+                </select>
+                {{with .Form.Errors.Get "dest_type"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+            </div>
+            <div x-show="dest_type=='mongo' || dest_type=='pg'" class="mb-3">
+                <label for="exampleInputDestURI1" class="form-label">URI</label>
+                <input name="dest_uri" class="form-control {{if .Form.Errors.Get "dest_uri"}} is-invalid {{else if
+                    .Form.Has "dest_uri" }} is-valid {{end}}" value="{{with $res.DestURI.Valid}}{{$res.DestURI.String}}{{end}}" id="exampleInputDestURI1"
+                    aria-describedby="dest_uriHelp">
+                {{with .Form.Errors.Get "dest_uri"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+            </div>
+            <div x-show="dest_type=='ssh'" class="mb-3">
+                <label for="exampleInputDestSshHost1" class="form-label">SSH Host</label>
+                <input name="dest_ssh_host" class="form-control {{if .Form.Errors.Get "dest_ssh_host"}} is-invalid {{else if
+                    .Form.Has "dest_ssh_host" }} is-valid {{end}}" value="{{$res.DbName}}" id="exampleInputDestSshHost1"
+                    aria-describedby="dest_ssh_hostHelp">
+                {{with .Form.Errors.Get "dest_ssh_host"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+            </div>
+            <div x-show="dest_type=='ssh'" class="mb-3">
+                <label for="exampleInputDestSshPort1" class="form-label">SSH Port</label>
+                <input name="dest_ssh_port" class="form-control {{if .Form.Errors.Get "dest_ssh_port"}} is-invalid {{else if
+                    .Form.Has "dest_ssh_port" }} is-valid {{end}}" value="{{$res.DbName}}" id="exampleInputDestSshPort1"
+                    aria-describedby="dest_ssh_portHelp">
+                {{with .Form.Errors.Get "dest_ssh_port"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+            </div>
+            <div x-show="dest_type=='ssh'" class="mb-3">
+                <label for="exampleInputDestSshUser1" class="form-label">SSH User</label>
+                <input name="dest_ssh_user" class="form-control {{if .Form.Errors.Get "dest_ssh_user"}} is-invalid {{else if
+                    .Form.Has "dest_ssh_user" }} is-valid {{end}}" value="{{$res.DbName}}" id="exampleInputDestSshUser1"
+                    aria-describedby="dest_ssh_userHelp">
+                {{with .Form.Errors.Get "dest_ssh_user"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+            </div>
+            <div x-show="dest_type=='ssh'" class="mb-3">
+                <label for="exampleInputDestSshKey1" class="form-label">SSH Key</label>
+                <textarea name="dest_ssh_key" class="form-control {{if .Form.Errors.Get "dest_ssh_key"}} is-invalid {{else if
+                    .Form.Has "dest_ssh_key" }} is-valid {{end}}" id="exampleInputDestSshKey1" aria-describedby="dest_ssh_keyHelp" rows="3">{{$res.DbName}}</textarea>
+                {{with .Form.Errors.Get "dest_ssh_key"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+            </div>
+            <div x-show="dest_type=='db'" class="mb-3">
+                <label for="exampleInputDestDbName1" class="form-label">Database Name</label>
+                <input name="dest_db_name" class="form-control {{if .Form.Errors.Get "dest_db_name"}} is-invalid {{else if
+                    .Form.Has "dest_db_name" }} is-valid {{end}}" value="{{$res.DbName}}" id="exampleInputDestDbName1"
+                    aria-describedby="dest_db_nameHelp">
+                {{with .Form.Errors.Get "dest_db_name"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+            </div>
+            <div x-show="dest_db_name=='db'" class="mb-3">
+                <label for="exampleInputDestDbUser1" class="form-label">Database User</label>
+                <input name="dest_db_user" class="form-control {{if .Form.Errors.Get "dest_db_user"}} is-invalid {{else if
+                    .Form.Has "dest_db_user" }} is-valid {{end}}" value="{{$res.DbUser}}" id="exampleInputDestDbUser1"
+                    aria-describedby="dest_db_userHelp">
+                {{with .Form.Errors.Get "dest_db_user"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+            </div>
+            <div x-show="dest_type=='db'" class="mb-3">
+                <label for="exampleInputDestDbPassword1" class="form-label">Database Password</label>
+                <input name="dest_db_password" class="form-control {{if .Form.Errors.Get "dest_db_password"}} is-invalid {{else if
+                    .Form.Has "dest_db_password" }} is-valid {{end}}" value="{{$res.DbPassword}}" id="exampleInputDestDbPassword1"
+                    aria-describedby="dest_db_passwordHelp">
+                {{with .Form.Errors.Get "dest_db_password"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+            </div>
+            <div x-show="dest_type=='db'" class="mb-3">
+                <label for="exampleInputDestDbHost1" class="form-label">Database Host</label>
+                <input name="dest_db_host" class="form-control {{if .Form.Errors.Get "dest_db_host"}} is-invalid {{else if
+                    .Form.Has "dest_db_host" }} is-valid {{end}}" value="{{$res.DbHost}}" id="exampleInputDestDbHost1"
+                    aria-describedby="dest_db_hostHelp">
+                {{with .Form.Errors.Get "dest_db_host"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+            </div>
+            <div x-show="dest_type=='db'" class="mb-3">
+                <label for="exampleInputDestDbPort1" class="form-label">Database Port</label>
+                <input name="dest_db_port" class="form-control {{if .Form.Errors.Get "dest_db_port"}} is-invalid {{else if
+                    .Form.Has "dest_db_port" }} is-valid {{end}}" value="{{$res.DbPort}}" id="exampleInputDestDbPort1"
+                    aria-describedby="dest_db_portHelp">
+                {{with .Form.Errors.Get "dest_db_port"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+            </div>
+            <div class="mb-3" x-show="dest_type=='object'">
+                <label for="exampleInputDestPodLabel1" class="form-label">Label To Find Pod</label>
+                <input name="dest_pod_label" class="form-control {{if .Form.Errors.Get "dest_pod_label"}} is-invalid {{else if
+                    .Form.Has "dest_pod_label" }} is-valid {{end}}" value="{{$res.DestPodLabel}}" id="exampleInputDestPodLabel1"
+                    aria-describedby="dest_pod_labelHelp">
+                {{with .Form.Errors.Get "dest_pod_label"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+                <div id="dest_pod_labelHelp" class="form-text">The label of the pod that we are going to migration the files inside its container, please use <code>=</code> with no space so <code>app: bnkr</code> become <code>app=bnkr</code>.
+                </div>
+            </div>
+            <div class="mb-3" x-show="dest_type=='pod'">
+                <label for="exampleInputDestPodName1" class="form-label">Pod Name</label>
+                <input name="dest_pod_name" class="form-control {{if .Form.Errors.Get "dest_pod_name"}} is-invalid {{else if
+                    .Form.Has "dest_pod_name" }} is-valid {{end}}" value="{{$res.DestPodName}}" id="exampleInputDestPodName1"
+                    aria-describedby="dest_pod_nameHelp">
+                {{with .Form.Errors.Get "dest_pod_name"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+                <div id="dest_pod_nameHelp" class="form-text">The pod that we are going to migration the files inside it.
+                </div>
+            </div>
+            <div class="mb-3" x-show="dest_type=='object' || dest_type=='pod'">
+                <label for="exampleInputDestContainer1" class="form-label">Container</label>
+                <input name="dest_container" class="form-control {{if .Form.Errors.Get "dest_container"}} is-invalid {{else if
+                    .Form.Has "dest_container" }} is-valid {{end}}" value="{{$res.DestContainer}}" id="exampleInputDestContainer1"
+                    aria-describedby="dest_containerHelp">
+                {{with .Form.Errors.Get "dest_container"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+                <div id="dest_containerHelp" class="form-text">The dest_container that we are going to migration the files inside it.
+                </div>
+            </div>
+            <div class="mb-3" x-show="dest_type=='object' || dest_type=='pod'">
+                <label for="exampleInputDestFilesPath1" class="form-label">Files Path</label>
+                <input name="dest_files_path" class="form-control {{if .Form.Errors.Get "dest_files_path"}} is-invalid {{else if
+                    .Form.Has "dest_files_path" }} is-valid {{end}}" value="{{$res.DestFilesPath}}" id="exampleInputDestFilesPath1"
+                    aria-describedby="dest_files_pathHelp">
+                {{with .Form.Errors.Get "dest_files_path"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+                <div id="dest_files_pathHelp" class="form-text">The folder path inside the container.</div>
+            </div>
+            <div class="mb-3">
+                <label for="exampleInputDestS3AccessKey1" class="form-label">S3 Access Key</label>
+                <input name="dest_s3_access_key" class="form-control {{if .Form.Errors.Get "dest_s3_access_key"}} is-invalid {{else if
+                    .Form.Has "dest_s3_access_key" }} is-valid {{end}}" value="{{$res.S3DestS3AccessKey}}" id="exampleInputDestS3AccessKey1"
+                    aria-describedby="dest_s3_access_keyHelp">
+                {{with .Form.Errors.Get "dest_s3_access_key"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+            </div>
+            <div class="mb-3">
+                <label for="exampleInputDestS3SecretKey1" class="form-label">S3 Secret Key</label>
+                <input name="dest_s3_secret_key" class="form-control {{if .Form.Errors.Get "dest_s3_secret_key"}} is-invalid {{else if
+                    .Form.Has "dest_s3_secret_key" }} is-valid {{end}}" value="{{$res.S3DestS3SecretKey}}" id="exampleInputDestS3SecretKey1"
+                    aria-describedby="dest_s3_secret_keyHelp">
+                {{with .Form.Errors.Get "dest_s3_secret_key"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+            </div>
+            <div class="mb-3">
+                <label for="exampleInputDestRegion1" class="form-label">Region</label>
+                <input name="dest_region" class="form-control {{if .Form.Errors.Get "dest_region"}} is-invalid {{else if
+                    .Form.Has "dest_region" }} is-valid {{end}}" value="{{$res.DestRegion}}" id="exampleInputDestRegion1"
+                    aria-describedby="dest_regionHelp">
+                {{with .Form.Errors.Get "dest_region"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+            </div>
+            <div class="mb-3">
+                <label for="exampleInputDestBucket1" class="form-label">Bucket</label>
+                <input name="dest_bucket" class="form-control {{if .Form.Errors.Get "dest_bucket"}} is-invalid {{else if
+                    .Form.Has "dest_bucket" }} is-valid {{end}}" value="{{$res.DestBucket}}" id="exampleInputDestBucket1"
+                    aria-describedby="dest_bucketHelp">
+                {{with .Form.Errors.Get "dest_bucket"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+            </div>
+            <div class="mb-3">
+                <label for="exampleInputDestStorageDirectory1" class="form-label">Storage Directory (Optional)</label>
+                <input placeholder="2021/weekly" name="dest_storage_directory" class="form-control {{if .Form.Errors.Get "dest_storage_directory"}} is-invalid {{else
+                    if .Form.Has "dest_storage_directory" }} is-valid {{end}}" value="{{$res.DestStorageDirectory}}"
+                    id="exampleInputDestStorageDirectory1" aria-describedby="dest_storage_directoryHelp">
+                {{with .Form.Errors.Get "dest_storage_directory"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+            </div>
+        </div>
+    </div>
     <button type="submit" class="btn btn-primary">{{with index .Data "id"}}Update{{else}}Submit{{end}}</button>
 </form>
 {{end}}
