@@ -106,7 +106,7 @@ func (m *Repository) PostNewMigration(w http.ResponseWriter, r *http.Request) {
 	DestStorageDirectory := r.Form.Get("dest_storage_directory")
 	SrcStorageDirectory := r.Form.Get("src_storage_directory")
 
-	values := dal.Migration{
+	values := &dal.Migration{
 		Name:                 migrationName,
 		Timezone:             timezone,
 		Emails:               Emails,
@@ -160,7 +160,7 @@ func (m *Repository) PostNewMigration(w http.ResponseWriter, r *http.Request) {
 	form.Required(args...)
 
 	data := make(map[string]interface{})
-	data["values"] = values
+	data["values"] = *values
 
 	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
 
