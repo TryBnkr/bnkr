@@ -41,7 +41,7 @@
         </div>
         {{end}}
     </div>
-    <div class="card">
+    <div class="card mb-3">
         <div class="card-header">
           Source
         </div>
@@ -128,7 +128,7 @@
                 </div>
                 {{end}}
             </div>
-            <div x-show="src_db_name=='db'" class="mb-3">
+            <div x-show="src_type=='db'" class="mb-3">
                 <label for="exampleInputSrcDbUser1" class="form-label">Database User</label>
                 <input name="src_db_user" class="form-control {{if .Form.Errors.Get "src_db_user"}} is-invalid {{else if
                     .Form.Has "src_db_user" }} is-valid {{end}}" value="{{$res.DbUser}}" id="exampleInputSrcDbUser1"
@@ -280,7 +280,7 @@
             </div>
         </div>
     </div>
-    <div class="card">
+    <div class="card mb-3">
         <div class="card-header">
           Destination
         </div>
@@ -367,7 +367,7 @@
                 </div>
                 {{end}}
             </div>
-            <div x-show="dest_db_name=='db'" class="mb-3">
+            <div x-show="dest_type=='db'" class="mb-3">
                 <label for="exampleInputDestDbUser1" class="form-label">Database User</label>
                 <input name="dest_db_user" class="form-control {{if .Form.Errors.Get "dest_db_user"}} is-invalid {{else if
                     .Form.Has "dest_db_user" }} is-valid {{end}}" value="{{$res.DbUser}}" id="exampleInputDestDbUser1"
@@ -519,7 +519,7 @@
             </div>
         </div>
     </div>
-    <button type="submit" class="btn btn-primary">{{with index .Data "id"}}Update{{else}}Submit{{end}}</button>
+    <button type="submit" class="btn btn-primary mb-3">{{with index .Data "id"}}Update{{else}}Submit{{end}}</button>
 </form>
 {{end}}
 
@@ -528,16 +528,8 @@
 <script>
     function newMigration(){
         return {
-            customFrequency: '{{with $res.Frequency}}{{if eq . "custom" }}{{$res.CustomFrequency}}{{end}}{{end}}',
-            textCron(){
-                try {
-                    return cronstrue.toString(this.customFrequency);
-                } catch (error) {
-                    return 'Standard Cron expression.';
-                }
-            },
-            type: '{{with $res.Type}}{{.}}{{else}}db{{end}}',
-            frequency:  '{{with $res.Frequency}}{{.}}{{else}}daily{{end}}'
+            src_type: '{{with $res.SrcType}}{{.}}{{else}}db{{end}}',
+            dest_type: '{{with $res.DestType}}{{.}}{{else}}db{{end}}',
         }
     }
 </script>

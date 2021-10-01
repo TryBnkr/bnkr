@@ -540,3 +540,21 @@ func GetOptionValue(o string) string {
 
 	return option.Value
 }
+
+func GetRequiredMigTypeFields(theType string, itfor string) []string {
+	result := []string{}
+
+	if theType == "db" {
+		result = []string{itfor + "_db_name", itfor + "_db_user", itfor + "_db_password", itfor + "_db_host", itfor + "_db_port"}
+	} else if theType == "object" {
+		result = []string{itfor + "_pod_label", itfor + "_files_path", itfor + "_container"}
+	} else if theType == "mongo" || theType == "pg" {
+		result = []string{itfor + "_uri"}
+	} else if theType == "pod" {
+		result = []string{itfor + "_files_path", itfor + "_container", itfor + "_pod_name"}
+	} else if theType == "ssh" {
+		result = []string{itfor + "_ssh_host", itfor + "_ssh_port", itfor + "_ssh_user", itfor + "_ssh_key"}
+	}
+
+	return result
+}

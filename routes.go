@@ -65,6 +65,8 @@ func routes(app *config.AppConfig) http.Handler {
 		mux.Use(pm.Auth)
 		mux.Get("/", services.Repo.GetMigrations)
 		mux.Get("/new", services.Repo.GetNewMigration)
+		mux.Post("/new", services.Repo.PostNewMigration)
+		mux.Post("/{id}", services.Repo.PostNewMigration)
 	})
 
 	mux.Route("/json", func(mux chi.Router) {
