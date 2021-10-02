@@ -1,8 +1,12 @@
 package utils
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
+	"io"
 	"net/http"
+	"os/exec"
 	"regexp"
 	"runtime/debug"
 
@@ -557,4 +561,40 @@ func GetRequiredMigTypeFields(theType string, itfor string) []string {
 	}
 
 	return result
+}
+
+func CmdExecutor(cmd *exec.Cmd) (string, error) {
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		app.ErrorLog.Println(err)
+		return err.Error(), err
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		app.ErrorLog.Println(err)
+		return err.Error(), err
+	}
+
+	if err := cmd.Start(); err != nil {
+		app.ErrorLog.Println(err)
+		return err.Error(), err
+	}
+
+	s := bufio.NewScanner(io.MultiReader(stdout, stderr))
+	var co bytes.Buffer
+
+	for s.Scan() {
+		co.Write(s.Bytes())
+		co.Write([]byte("\n"))
+	}
+
+	if err := cmd.Wait(); err != nil {
+		cerr := co.String() + `
+
+		` + err.Error()
+
+		return cerr, err
+	}
+
+	return co.String(), err
 }

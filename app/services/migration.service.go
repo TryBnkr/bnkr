@@ -4,8 +4,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -225,7 +227,7 @@ type MigrationCommon struct {
 	MigrationName string
 	S3FullPath    string
 	S3Path        string
-	Dir           string
+	TmpPath       string
 	Msg           types.MailData
 	FailedStatus  string
 	SuccessStatus string
@@ -280,7 +282,7 @@ func (m *Repository) PrepareMigration(b *dal.Migration, migrationName string, s3
 		MigrationName: migrationName,
 		S3FullPath:    s3FullPath,
 		S3Path:        s3Path,
-		Dir:           dir,
+		TmpPath:       dir,
 		Msg:           msg,
 		FailedStatus:  "fail",
 		SuccessStatus: "success",
@@ -292,8 +294,23 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) {
 	// Is the DB in K8S or SSH
 	// If the database inside SSH then run dump command on the server using the SSH details then move it to Bnkr
 	// Else if direct access is allowed then simply do the dump on Bnkr
-	// args := []string{"exec", "-c", b.Container, podName, "--", "sh", "-c", "cd / ; tar -czf " + commons.BackupName + " -C " + b.FilesPath + " ."}
-	// tarball := exec.Command("kubectl", args...)
+	if g.SrcAccess == "ssh" {
+		// Create the SSH key file
+		sshKeyPath := c.TmpPath + "/" + "id_rsa"
+		err := ioutil.WriteFile(sshKeyPath, []byte(g.SrcSshKey), 0600)
+		if err != nil {
+			m.App.ErrorLog.Println(err)
+			return
+		}
+
+		args := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.SrcSshUser + "@" + g.SrcSshHost, "mysqldump", "-h", g.SrcDbHost, "-u", g.SrcDbUser, "--port=" + g.SrcDbPort, "-p" + g.SrcDbPassword, g.SrcDbName}
+		cmd := exec.Command("ssh", args...)
+
+		output, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return
+		}
+	}
 }
 
 func (m *Repository) migrate(id int) {
