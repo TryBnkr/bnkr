@@ -57,6 +57,27 @@ type Migration struct {
 	DestSshKey           string       `db:"dest_ssh_key"`
 }
 
+func CreateMigration(migration *Migration) (int, error) {
+	var id int
+
+	rows, err := database.DB.NamedQuery(`INSERT INTO migrations (created_at, updated_at, "name", timezone, src_type, dest_type, src_bucket, dest_bucket, src_region, dest_region, src_db_name, dest_db_name, src_db_user, dest_db_user, src_db_password, dest_db_password, src_db_host, dest_db_host, src_db_port, dest_db_port, src_pod_label, dest_pod_label, src_pod_name, dest_pod_name, src_container, dest_container, src_files_path, dest_files_path, src_s3_access_key, dest_s3_access_key, src_s3_secret_key, dest_s3_secret_key, src_storage_directory, dest_storage_directory, src_ssh_host, dest_ssh_host, src_ssh_port, dest_ssh_port, src_ssh_user, dest_ssh_user, src_ssh_key, dest_ssh_key, src_uri, dest_uri, emails, "user")
+	VALUES (:created_at, :updated_at, :name, :timezone, :src_type, :dest_type, :src_bucket, :dest_bucket, :src_region, :dest_region, :src_db_name, :dest_db_name, :src_db_user, :dest_db_user, :src_db_password, :dest_db_password, :src_db_host, :dest_db_host, :src_db_port, :dest_db_port, :src_pod_label, :dest_pod_label, :src_pod_name, :dest_pod_name, :src_container, :dest_container, :src_files_path, :dest_files_path, :src_s3_access_key, :dest_s3_access_key, :src_s3_secret_key, :dest_s3_secret_key, :src_storage_directory, :dest_storage_directory, :src_ssh_host, :dest_ssh_host, :src_ssh_port, :dest_ssh_port, :src_ssh_user, :dest_ssh_user, :src_ssh_key, :dest_ssh_key, :src_uri, :dest_uri, :emails, :user) RETURNING id`, *migration)
+
+	if rows.Next() {
+		rows.Scan(&id)
+	}
+
+	migration.ID = id
+
+	return id, err
+}
+
+func UpdateMigration(data interface{}) (sql.Result, error) {
+	result, err := database.DB.NamedExec(`UPDATE migrations SET (updated_at, "name", timezone, src_type, dest_type, src_bucket, dest_bucket, src_region, dest_region, src_db_name, dest_db_name, src_db_user, dest_db_user, src_db_password, dest_db_password, src_db_host, dest_db_host, src_db_port, dest_db_port, src_pod_label, dest_pod_label, src_pod_name, dest_pod_name, src_container, dest_container, src_files_path, dest_files_path, src_s3_access_key, dest_s3_access_key, src_s3_secret_key, dest_s3_secret_key, src_storage_directory, dest_storage_directory, src_ssh_host, dest_ssh_host, src_ssh_port, dest_ssh_port, src_ssh_user, dest_ssh_user, src_ssh_key, dest_ssh_key, src_uri, dest_uri, emails)
+	= (:updated_at, :name, :timezone, :src_type, :dest_type, :src_bucket, :dest_bucket, :src_region, :dest_region, :src_db_name, :dest_db_name, :src_db_user, :dest_db_user, :src_db_password, :dest_db_password, :src_db_host, :dest_db_host, :src_db_port, :dest_db_port, :src_pod_label, :dest_pod_label, :src_pod_name, :dest_pod_name, :src_container, :dest_container, :src_files_path, :dest_files_path, :src_s3_access_key, :dest_s3_access_key, :src_s3_secret_key, :dest_s3_secret_key, :src_storage_directory, :dest_storage_directory, :src_ssh_host, :dest_ssh_host, :src_ssh_port, :dest_ssh_port, :src_ssh_user, :dest_ssh_user, :src_ssh_key, :dest_ssh_key, :src_uri, :dest_uri, :emails) where id=:id`, data)
+	return result, err
+}
+
 func FindAllMigrations(dest interface{}) error {
 	return database.DB.Select(dest, "SELECT * FROM migrations ORDER BY id DESC")
 }
