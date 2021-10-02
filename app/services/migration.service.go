@@ -168,6 +168,8 @@ func (m *Repository) PostNewMigration(w http.ResponseWriter, r *http.Request) {
 		data["id"] = id
 	}
 
+	data["timezones"] = utils.GetTimeZones()
+
 	if !form.Valid() {
 		render.Template(w, r, "migrations.new.page.tmpl", &types.TemplateData{
 			Form: form,
