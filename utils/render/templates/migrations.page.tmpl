@@ -18,7 +18,7 @@
     <template x-if="!deletedItems.includes({{.ID}})">
       <tr>
         <td scope="row">{{.ID}}</td>
-        <td><a href="/jobs/migrations/{{.ID}}">{{.Name}}</a></td>
+        <td>{{.Name}}</td>
         <td>{{.Timezone}}</td>
         <td>
           <button class="btn btn-success btn-sm" type="button" x-on:click="migrationNow({{.ID}})"

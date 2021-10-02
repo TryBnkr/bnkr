@@ -11,6 +11,8 @@ type Migration struct {
 	CreatedAt            sql.NullTime `db:"created_at"`
 	UpdatedAt            sql.NullTime `db:"updated_at"`
 	DeletedAt            sql.NullTime `db:"deleted_at"`
+	StartedAt            sql.NullTime `db:"started_at"`
+	CompletedAt          sql.NullTime `db:"completed_at"`
 	Name                 string       `db:"name"`
 	User                 int          `db:"user"`
 	Timezone             string       `db:"timezone"`
@@ -55,6 +57,8 @@ type Migration struct {
 	DestSshPort          string       `db:"dest_ssh_port"`
 	DestSshUser          string       `db:"dest_ssh_user"`
 	DestSshKey           string       `db:"dest_ssh_key"`
+	Status               string       `db:"status"`
+	Output               string       `db:"output"`
 }
 
 func CreateMigration(migration *Migration) (int, error) {
