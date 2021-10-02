@@ -32,10 +32,10 @@
     </div>
     <div class="mb-3">
         <label for="exampleInputNotificationEmail1" class="form-label">Notification Emails (Optional)</label>
-        <input name="notificationEmail" placeholder="user1@example.com,user2@example.com" class="form-control {{if .Form.Errors.Get "notificationEmail"}} is-invalid
-            {{else if .Form.Has "notificationEmail" }} is-valid {{end}}" value="{{$res.Emails}}"
-            id="exampleInputNotificationEmail1" aria-describedby="notificationEmailHelp">
-        {{with .Form.Errors.Get "notificationEmail"}}
+        <input name="emails" placeholder="user1@example.com,user2@example.com" class="form-control {{if .Form.Errors.Get "emails"}} is-invalid
+            {{else if .Form.Has "emails" }} is-valid {{end}}" value="{{$res.Emails}}"
+            id="exampleInputNotificationEmail1" aria-describedby="emailsHelp">
+        {{with .Form.Errors.Get "emails"}}
         <div class="invalid-feedback">
             {{.}}
         </div>
@@ -66,7 +66,7 @@
             <div x-show="src_type=='mongo' || src_type=='pg'" class="mb-3">
                 <label for="exampleInputSrcURI1" class="form-label">URI</label>
                 <input name="src_uri" class="form-control {{if .Form.Errors.Get "src_uri"}} is-invalid {{else if
-                    .Form.Has "src_uri" }} is-valid {{end}}" value="{{with $res.SrcURI.Valid}}{{$res.SrcURI.String}}{{end}}" id="exampleInputSrcURI1"
+                    .Form.Has "src_uri" }} is-valid {{end}}" value="{{with $res.SrcURI}}{{$res.SrcURI}}{{end}}" id="exampleInputSrcURI1"
                     aria-describedby="src_uriHelp">
                 {{with .Form.Errors.Get "src_uri"}}
                 <div class="invalid-feedback">
@@ -77,7 +77,7 @@
             <div x-show="src_type=='ssh'" class="mb-3">
                 <label for="exampleInputSrcSshHost1" class="form-label">SSH Host</label>
                 <input name="src_ssh_host" class="form-control {{if .Form.Errors.Get "src_ssh_host"}} is-invalid {{else if
-                    .Form.Has "src_ssh_host" }} is-valid {{end}}" value="{{$res.DbName}}" id="exampleInputSrcSshHost1"
+                    .Form.Has "src_ssh_host" }} is-valid {{end}}" value="{{$res.SrcSshHost}}" id="exampleInputSrcSshHost1"
                     aria-describedby="src_ssh_hostHelp">
                 {{with .Form.Errors.Get "src_ssh_host"}}
                 <div class="invalid-feedback">
@@ -88,7 +88,7 @@
             <div x-show="src_type=='ssh'" class="mb-3">
                 <label for="exampleInputSrcSshPort1" class="form-label">SSH Port</label>
                 <input name="src_ssh_port" class="form-control {{if .Form.Errors.Get "src_ssh_port"}} is-invalid {{else if
-                    .Form.Has "src_ssh_port" }} is-valid {{end}}" value="{{$res.DbName}}" id="exampleInputSrcSshPort1"
+                    .Form.Has "src_ssh_port" }} is-valid {{end}}" value="{{$res.SrcSshPort}}" id="exampleInputSrcSshPort1"
                     aria-describedby="src_ssh_portHelp">
                 {{with .Form.Errors.Get "src_ssh_port"}}
                 <div class="invalid-feedback">
@@ -99,7 +99,7 @@
             <div x-show="src_type=='ssh'" class="mb-3">
                 <label for="exampleInputSrcSshUser1" class="form-label">SSH User</label>
                 <input name="src_ssh_user" class="form-control {{if .Form.Errors.Get "src_ssh_user"}} is-invalid {{else if
-                    .Form.Has "src_ssh_user" }} is-valid {{end}}" value="{{$res.DbName}}" id="exampleInputSrcSshUser1"
+                    .Form.Has "src_ssh_user" }} is-valid {{end}}" value="{{$res.SrcSshUser}}" id="exampleInputSrcSshUser1"
                     aria-describedby="src_ssh_userHelp">
                 {{with .Form.Errors.Get "src_ssh_user"}}
                 <div class="invalid-feedback">
@@ -110,7 +110,7 @@
             <div x-show="src_type=='ssh'" class="mb-3">
                 <label for="exampleInputSrcSshKey1" class="form-label">SSH Key</label>
                 <textarea name="src_ssh_key" class="form-control {{if .Form.Errors.Get "src_ssh_key"}} is-invalid {{else if
-                    .Form.Has "src_ssh_key" }} is-valid {{end}}" id="exampleInputSrcSshKey1" aria-describedby="src_ssh_keyHelp" rows="3">{{$res.DbName}}</textarea>
+                    .Form.Has "src_ssh_key" }} is-valid {{end}}" id="exampleInputSrcSshKey1" aria-describedby="src_ssh_keyHelp" rows="3">{{$res.SrcSshKey}}</textarea>
                 {{with .Form.Errors.Get "src_ssh_key"}}
                 <div class="invalid-feedback">
                     {{.}}
@@ -120,7 +120,7 @@
             <div x-show="src_type=='db'" class="mb-3">
                 <label for="exampleInputSrcDbName1" class="form-label">Database Name</label>
                 <input name="src_db_name" class="form-control {{if .Form.Errors.Get "src_db_name"}} is-invalid {{else if
-                    .Form.Has "src_db_name" }} is-valid {{end}}" value="{{$res.DbName}}" id="exampleInputSrcDbName1"
+                    .Form.Has "src_db_name" }} is-valid {{end}}" value="{{$res.SrcDbName}}" id="exampleInputSrcDbName1"
                     aria-describedby="src_db_nameHelp">
                 {{with .Form.Errors.Get "src_db_name"}}
                 <div class="invalid-feedback">
@@ -131,7 +131,7 @@
             <div x-show="src_type=='db'" class="mb-3">
                 <label for="exampleInputSrcDbUser1" class="form-label">Database User</label>
                 <input name="src_db_user" class="form-control {{if .Form.Errors.Get "src_db_user"}} is-invalid {{else if
-                    .Form.Has "src_db_user" }} is-valid {{end}}" value="{{$res.DbUser}}" id="exampleInputSrcDbUser1"
+                    .Form.Has "src_db_user" }} is-valid {{end}}" value="{{$res.SrcDbUser}}" id="exampleInputSrcDbUser1"
                     aria-describedby="src_db_userHelp">
                 {{with .Form.Errors.Get "src_db_user"}}
                 <div class="invalid-feedback">
@@ -142,7 +142,7 @@
             <div x-show="src_type=='db'" class="mb-3">
                 <label for="exampleInputSrcDbPassword1" class="form-label">Database Password</label>
                 <input name="src_db_password" class="form-control {{if .Form.Errors.Get "src_db_password"}} is-invalid {{else if
-                    .Form.Has "src_db_password" }} is-valid {{end}}" value="{{$res.DbPassword}}" id="exampleInputSrcDbPassword1"
+                    .Form.Has "src_db_password" }} is-valid {{end}}" value="{{$res.SrcDbPassword}}" id="exampleInputSrcDbPassword1"
                     aria-describedby="src_db_passwordHelp">
                 {{with .Form.Errors.Get "src_db_password"}}
                 <div class="invalid-feedback">
@@ -153,7 +153,7 @@
             <div x-show="src_type=='db'" class="mb-3">
                 <label for="exampleInputSrcDbHost1" class="form-label">Database Host</label>
                 <input name="src_db_host" class="form-control {{if .Form.Errors.Get "src_db_host"}} is-invalid {{else if
-                    .Form.Has "src_db_host" }} is-valid {{end}}" value="{{$res.DbHost}}" id="exampleInputSrcDbHost1"
+                    .Form.Has "src_db_host" }} is-valid {{end}}" value="{{$res.SrcDbHost}}" id="exampleInputSrcDbHost1"
                     aria-describedby="src_db_hostHelp">
                 {{with .Form.Errors.Get "src_db_host"}}
                 <div class="invalid-feedback">
@@ -164,7 +164,7 @@
             <div x-show="src_type=='db'" class="mb-3">
                 <label for="exampleInputSrcDbPort1" class="form-label">Database Port</label>
                 <input name="src_db_port" class="form-control {{if .Form.Errors.Get "src_db_port"}} is-invalid {{else if
-                    .Form.Has "src_db_port" }} is-valid {{end}}" value="{{$res.DbPort}}" id="exampleInputSrcDbPort1"
+                    .Form.Has "src_db_port" }} is-valid {{end}}" value="{{$res.SrcDbPort}}" id="exampleInputSrcDbPort1"
                     aria-describedby="src_db_portHelp">
                 {{with .Form.Errors.Get "src_db_port"}}
                 <div class="invalid-feedback">
@@ -226,7 +226,7 @@
             <div class="mb-3">
                 <label for="exampleInputSrcS3AccessKey1" class="form-label">S3 Access Key</label>
                 <input name="src_s3_access_key" class="form-control {{if .Form.Errors.Get "src_s3_access_key"}} is-invalid {{else if
-                    .Form.Has "src_s3_access_key" }} is-valid {{end}}" value="{{$res.S3SrcS3AccessKey}}" id="exampleInputSrcS3AccessKey1"
+                    .Form.Has "src_s3_access_key" }} is-valid {{end}}" value="{{$res.SrcS3AccessKey}}" id="exampleInputSrcS3AccessKey1"
                     aria-describedby="src_s3_access_keyHelp">
                 {{with .Form.Errors.Get "src_s3_access_key"}}
                 <div class="invalid-feedback">
@@ -237,7 +237,7 @@
             <div class="mb-3">
                 <label for="exampleInputSrcS3SecretKey1" class="form-label">S3 Secret Key</label>
                 <input name="src_s3_secret_key" class="form-control {{if .Form.Errors.Get "src_s3_secret_key"}} is-invalid {{else if
-                    .Form.Has "src_s3_secret_key" }} is-valid {{end}}" value="{{$res.S3SrcS3SecretKey}}" id="exampleInputSrcS3SecretKey1"
+                    .Form.Has "src_s3_secret_key" }} is-valid {{end}}" value="{{$res.SrcS3SecretKey}}" id="exampleInputSrcS3SecretKey1"
                     aria-describedby="src_s3_secret_keyHelp">
                 {{with .Form.Errors.Get "src_s3_secret_key"}}
                 <div class="invalid-feedback">
@@ -305,7 +305,7 @@
             <div x-show="dest_type=='mongo' || dest_type=='pg'" class="mb-3">
                 <label for="exampleInputDestURI1" class="form-label">URI</label>
                 <input name="dest_uri" class="form-control {{if .Form.Errors.Get "dest_uri"}} is-invalid {{else if
-                    .Form.Has "dest_uri" }} is-valid {{end}}" value="{{with $res.DestURI.Valid}}{{$res.DestURI.String}}{{end}}" id="exampleInputDestURI1"
+                    .Form.Has "dest_uri" }} is-valid {{end}}" value="{{with $res.DestURI}}{{$res.DestURI}}{{end}}" id="exampleInputDestURI1"
                     aria-describedby="dest_uriHelp">
                 {{with .Form.Errors.Get "dest_uri"}}
                 <div class="invalid-feedback">
@@ -316,7 +316,7 @@
             <div x-show="dest_type=='ssh'" class="mb-3">
                 <label for="exampleInputDestSshHost1" class="form-label">SSH Host</label>
                 <input name="dest_ssh_host" class="form-control {{if .Form.Errors.Get "dest_ssh_host"}} is-invalid {{else if
-                    .Form.Has "dest_ssh_host" }} is-valid {{end}}" value="{{$res.DbName}}" id="exampleInputDestSshHost1"
+                    .Form.Has "dest_ssh_host" }} is-valid {{end}}" value="{{$res.DestDbName}}" id="exampleInputDestSshHost1"
                     aria-describedby="dest_ssh_hostHelp">
                 {{with .Form.Errors.Get "dest_ssh_host"}}
                 <div class="invalid-feedback">
@@ -327,7 +327,7 @@
             <div x-show="dest_type=='ssh'" class="mb-3">
                 <label for="exampleInputDestSshPort1" class="form-label">SSH Port</label>
                 <input name="dest_ssh_port" class="form-control {{if .Form.Errors.Get "dest_ssh_port"}} is-invalid {{else if
-                    .Form.Has "dest_ssh_port" }} is-valid {{end}}" value="{{$res.DbName}}" id="exampleInputDestSshPort1"
+                    .Form.Has "dest_ssh_port" }} is-valid {{end}}" value="{{$res.DestSshPort}}" id="exampleInputDestSshPort1"
                     aria-describedby="dest_ssh_portHelp">
                 {{with .Form.Errors.Get "dest_ssh_port"}}
                 <div class="invalid-feedback">
@@ -338,7 +338,7 @@
             <div x-show="dest_type=='ssh'" class="mb-3">
                 <label for="exampleInputDestSshUser1" class="form-label">SSH User</label>
                 <input name="dest_ssh_user" class="form-control {{if .Form.Errors.Get "dest_ssh_user"}} is-invalid {{else if
-                    .Form.Has "dest_ssh_user" }} is-valid {{end}}" value="{{$res.DbName}}" id="exampleInputDestSshUser1"
+                    .Form.Has "dest_ssh_user" }} is-valid {{end}}" value="{{$res.DestSshUser}}" id="exampleInputDestSshUser1"
                     aria-describedby="dest_ssh_userHelp">
                 {{with .Form.Errors.Get "dest_ssh_user"}}
                 <div class="invalid-feedback">
@@ -349,7 +349,7 @@
             <div x-show="dest_type=='ssh'" class="mb-3">
                 <label for="exampleInputDestSshKey1" class="form-label">SSH Key</label>
                 <textarea name="dest_ssh_key" class="form-control {{if .Form.Errors.Get "dest_ssh_key"}} is-invalid {{else if
-                    .Form.Has "dest_ssh_key" }} is-valid {{end}}" id="exampleInputDestSshKey1" aria-describedby="dest_ssh_keyHelp" rows="3">{{$res.DbName}}</textarea>
+                    .Form.Has "dest_ssh_key" }} is-valid {{end}}" id="exampleInputDestSshKey1" aria-describedby="dest_ssh_keyHelp" rows="3">{{$res.DestSshKey}}</textarea>
                 {{with .Form.Errors.Get "dest_ssh_key"}}
                 <div class="invalid-feedback">
                     {{.}}
@@ -359,7 +359,7 @@
             <div x-show="dest_type=='db'" class="mb-3">
                 <label for="exampleInputDestDbName1" class="form-label">Database Name</label>
                 <input name="dest_db_name" class="form-control {{if .Form.Errors.Get "dest_db_name"}} is-invalid {{else if
-                    .Form.Has "dest_db_name" }} is-valid {{end}}" value="{{$res.DbName}}" id="exampleInputDestDbName1"
+                    .Form.Has "dest_db_name" }} is-valid {{end}}" value="{{$res.DestDbName}}" id="exampleInputDestDbName1"
                     aria-describedby="dest_db_nameHelp">
                 {{with .Form.Errors.Get "dest_db_name"}}
                 <div class="invalid-feedback">
@@ -370,7 +370,7 @@
             <div x-show="dest_type=='db'" class="mb-3">
                 <label for="exampleInputDestDbUser1" class="form-label">Database User</label>
                 <input name="dest_db_user" class="form-control {{if .Form.Errors.Get "dest_db_user"}} is-invalid {{else if
-                    .Form.Has "dest_db_user" }} is-valid {{end}}" value="{{$res.DbUser}}" id="exampleInputDestDbUser1"
+                    .Form.Has "dest_db_user" }} is-valid {{end}}" value="{{$res.DestDbUser}}" id="exampleInputDestDbUser1"
                     aria-describedby="dest_db_userHelp">
                 {{with .Form.Errors.Get "dest_db_user"}}
                 <div class="invalid-feedback">
@@ -381,7 +381,7 @@
             <div x-show="dest_type=='db'" class="mb-3">
                 <label for="exampleInputDestDbPassword1" class="form-label">Database Password</label>
                 <input name="dest_db_password" class="form-control {{if .Form.Errors.Get "dest_db_password"}} is-invalid {{else if
-                    .Form.Has "dest_db_password" }} is-valid {{end}}" value="{{$res.DbPassword}}" id="exampleInputDestDbPassword1"
+                    .Form.Has "dest_db_password" }} is-valid {{end}}" value="{{$res.DestDbPassword}}" id="exampleInputDestDbPassword1"
                     aria-describedby="dest_db_passwordHelp">
                 {{with .Form.Errors.Get "dest_db_password"}}
                 <div class="invalid-feedback">
@@ -392,7 +392,7 @@
             <div x-show="dest_type=='db'" class="mb-3">
                 <label for="exampleInputDestDbHost1" class="form-label">Database Host</label>
                 <input name="dest_db_host" class="form-control {{if .Form.Errors.Get "dest_db_host"}} is-invalid {{else if
-                    .Form.Has "dest_db_host" }} is-valid {{end}}" value="{{$res.DbHost}}" id="exampleInputDestDbHost1"
+                    .Form.Has "dest_db_host" }} is-valid {{end}}" value="{{$res.DestDbHost}}" id="exampleInputDestDbHost1"
                     aria-describedby="dest_db_hostHelp">
                 {{with .Form.Errors.Get "dest_db_host"}}
                 <div class="invalid-feedback">
@@ -403,7 +403,7 @@
             <div x-show="dest_type=='db'" class="mb-3">
                 <label for="exampleInputDestDbPort1" class="form-label">Database Port</label>
                 <input name="dest_db_port" class="form-control {{if .Form.Errors.Get "dest_db_port"}} is-invalid {{else if
-                    .Form.Has "dest_db_port" }} is-valid {{end}}" value="{{$res.DbPort}}" id="exampleInputDestDbPort1"
+                    .Form.Has "dest_db_port" }} is-valid {{end}}" value="{{$res.DestDbPort}}" id="exampleInputDestDbPort1"
                     aria-describedby="dest_db_portHelp">
                 {{with .Form.Errors.Get "dest_db_port"}}
                 <div class="invalid-feedback">
@@ -465,7 +465,7 @@
             <div class="mb-3">
                 <label for="exampleInputDestS3AccessKey1" class="form-label">S3 Access Key</label>
                 <input name="dest_s3_access_key" class="form-control {{if .Form.Errors.Get "dest_s3_access_key"}} is-invalid {{else if
-                    .Form.Has "dest_s3_access_key" }} is-valid {{end}}" value="{{$res.S3DestS3AccessKey}}" id="exampleInputDestS3AccessKey1"
+                    .Form.Has "dest_s3_access_key" }} is-valid {{end}}" value="{{$res.DestS3AccessKey}}" id="exampleInputDestS3AccessKey1"
                     aria-describedby="dest_s3_access_keyHelp">
                 {{with .Form.Errors.Get "dest_s3_access_key"}}
                 <div class="invalid-feedback">
@@ -476,7 +476,7 @@
             <div class="mb-3">
                 <label for="exampleInputDestS3SecretKey1" class="form-label">S3 Secret Key</label>
                 <input name="dest_s3_secret_key" class="form-control {{if .Form.Errors.Get "dest_s3_secret_key"}} is-invalid {{else if
-                    .Form.Has "dest_s3_secret_key" }} is-valid {{end}}" value="{{$res.S3DestS3SecretKey}}" id="exampleInputDestS3SecretKey1"
+                    .Form.Has "dest_s3_secret_key" }} is-valid {{end}}" value="{{$res.DestS3SecretKey}}" id="exampleInputDestS3SecretKey1"
                     aria-describedby="dest_s3_secret_keyHelp">
                 {{with .Form.Errors.Get "dest_s3_secret_key"}}
                 <div class="invalid-feedback">
