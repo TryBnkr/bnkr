@@ -18,6 +18,7 @@ type Migration struct {
 	Timezone             string         `db:"timezone"`
 	Emails               string         `db:"emails"`
 	SrcType              string         `db:"src_type"`
+	SrcAccess            string         `db:"src_access"`
 	SrcBucket            string         `db:"src_bucket"`
 	SrcRegion            string         `db:"src_region"`
 	SrcDbName            string         `db:"src_db_name"`
@@ -37,7 +38,9 @@ type Migration struct {
 	SrcSshPort           string         `db:"src_ssh_port"`
 	SrcSshUser           string         `db:"src_ssh_user"`
 	SrcSshKey            string         `db:"src_ssh_key"`
+	SrcKubeconfig        string         `db:"src_kubeconfig"`
 	DestType             string         `db:"dest_type"`
+	DestAccess           string         `db:"dest_access"`
 	DestBucket           string         `db:"dest_bucket"`
 	DestRegion           string         `db:"dest_region"`
 	DestDbName           string         `db:"dest_db_name"`
@@ -57,6 +60,7 @@ type Migration struct {
 	DestSshPort          string         `db:"dest_ssh_port"`
 	DestSshUser          string         `db:"dest_ssh_user"`
 	DestSshKey           string         `db:"dest_ssh_key"`
+	DestKubeconfig       string         `db:"dest_kubeconfig"`
 	Status               sql.NullString `db:"status"`
 	Output               sql.NullString `db:"output"`
 }

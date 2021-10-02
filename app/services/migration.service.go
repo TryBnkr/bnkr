@@ -2,8 +2,12 @@ package services
 
 import (
 	"database/sql"
+	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/MohammedAl-Mahdawi/bnkr/app/dal"
@@ -12,6 +16,7 @@ import (
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/forms"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/render"
 	"github.com/go-chi/chi/v5"
+	guuid "github.com/google/uuid"
 )
 
 func (m *Repository) GetMigrations(w http.ResponseWriter, r *http.Request) {
@@ -213,4 +218,111 @@ func (m *Repository) PostNewMigration(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, "/migrations", http.StatusSeeOther)
+}
+
+type MigrationCommon struct {
+	MigrationPath string
+	MigrationName string
+	S3FullPath    string
+	S3Path        string
+	Dir           string
+	Msg           types.MailData
+	FailedStatus  string
+	SuccessStatus string
+	StartedAt     time.Time
+}
+
+func (m *Repository) PrepareMigration(b *dal.Migration, migrationName string, s3FullPath string) MigrationCommon {
+	loc, _ := time.LoadLocation(b.Timezone)
+	currentTime := time.Now().In(loc).Format("2006.01.02-150405")
+	// Example ./bnkr/ad21d8b9-3663-4bfb-8978-30d0ec51a1b8
+	dir := "./bnkr/" + guuid.New().String()
+
+	os.MkdirAll(dir, os.ModePerm)
+
+	if migrationName == "" {
+		if b.SrcType == "db" {
+			migrationName = b.SrcDbName + "." + currentTime + ".sql.gz"
+		} else if b.SrcType == "mongo" {
+			migrationName = currentTime + ".gz"
+		} else if b.SrcType == "pg" || b.SrcType == "bnkr" {
+			migrationName = currentTime + ".psql.gz"
+		} else {
+			// Files
+			migrationName = currentTime + ".tar.gz"
+		}
+	}
+
+	msg := types.MailData{
+		To:   strings.Split(b.Emails, ","),
+		From: utils.GetOptionValue("FROM_EMAIL"),
+	}
+
+	if b.SrcType == "db" || b.SrcType == "mongo" || b.SrcType == "pg" || b.SrcType == "bnkr" {
+		msg.Subject = fmt.Sprintf("Database migration %s failed!", b.Name)
+	} else {
+		msg.Subject = fmt.Sprintf("Files migration %s failed!", b.Name)
+	}
+
+	migrationPath := dir + "/" + migrationName
+
+	s3Path := "/"
+	if b.SrcStorageDirectory != "" {
+		s3Path = "/" + b.SrcStorageDirectory + "/"
+	}
+
+	if s3FullPath == "" {
+		s3FullPath = s3Path + migrationName
+	}
+
+	return MigrationCommon{
+		MigrationPath: migrationPath,
+		MigrationName: migrationName,
+		S3FullPath:    s3FullPath,
+		S3Path:        s3Path,
+		Dir:           dir,
+		Msg:           msg,
+		FailedStatus:  "fail",
+		SuccessStatus: "success",
+		StartedAt:     time.Now(),
+	}
+}
+
+func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) {
+	// Is the DB in K8S or SSH
+	// If the database inside SSH then run dump command on the server using the SSH details then move it to Bnkr
+	// Else if direct access is allowed then simply do the dump on Bnkr
+	// args := []string{"exec", "-c", b.Container, podName, "--", "sh", "-c", "cd / ; tar -czf " + commons.BackupName + " -C " + b.FilesPath + " ."}
+	// tarball := exec.Command("kubectl", args...)
+}
+
+func (m *Repository) migrate(id int) {
+	migration := &dal.Migration{}
+
+	if err := dal.FindMigrationById(migration, id); err != nil {
+		m.App.ErrorLog.Println(err)
+		return
+	}
+
+	commons := Repo.PrepareMigration(migration, "", "")
+
+	switch migration.SrcType {
+	case "db":
+		Repo.srcDB(migration, commons)
+	case "ssh":
+
+	}
+}
+
+func (m *Repository) MigrateNow(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
+
+	go m.migrate(id)
+
+	out, _ := json.Marshal(&types.MsgResponse{
+		Message: "Migration process queued!",
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(out)
 }

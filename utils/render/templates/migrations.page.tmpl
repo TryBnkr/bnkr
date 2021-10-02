@@ -21,11 +21,11 @@
         <td scope="row">{{.ID}}</td>
         <td>{{.Name}}</td>
         <td>{{.Timezone}}</td>
-        <td>{{with .Status.Valid}}{{if eq .Status "success"}}<span class="badge rounded-pill bg-success">Success</span>{{else}}<span class="badge rounded-pill bg-danger">Fail</span>{{end}}{{else}}<span class="badge rounded-pill bg-secondary">Not running</span>{{end}}</td>
+        <td>{{with .Status.Valid}}{{if eq .Status "success"}}<span class="badge rounded-pill bg-success">Success</span>{{else}}<span class="badge rounded-pill bg-danger">Fail</span>{{end}}{{else}}<span class="badge rounded-pill bg-secondary">Didn't run yet</span>{{end}}</td>
         <td>
-          <button class="btn btn-success btn-sm" type="button" x-on:click="migrationNow({{.ID}})"
+          <button class="btn btn-success btn-sm" type="button" x-on:click="migrateNow({{.ID}})"
             :disabled="migrations.includes({{.ID}})" x-text="migrations.includes({{.ID}}) ? 'In progress...' : 'Migration'"
-            x-html="migrations.includes({{.ID}}) ? spinner : 'Migration Now'"></button>
+            x-html="migrations.includes({{.ID}}) ? spinner : 'Migrate Now'"></button>
           <a href="/migrations/{{.ID}}" class="btn btn-secondary btn-sm" title="Edit" role="button">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-pencil-fill"
               viewBox="0 0 16 16">
@@ -66,8 +66,8 @@
       deletedItems: [],
       clones: [],
       migrations: [],
-      migrationNow(id) {
-        fetch('/json/jobs/migration/' + id, {
+      migrateNow(id) {
+        fetch('/json/migration/' + id, {
           method: "post",
           headers: {
             'Content-Type': 'application/json',

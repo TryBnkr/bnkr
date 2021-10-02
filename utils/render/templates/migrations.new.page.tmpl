@@ -52,12 +52,27 @@
                     .Form.Has "src_type" }} is-valid {{end}}">
                     <option value="db" {{with $res.SrcType}}{{if eq $res.SrcType "db" }}selected{{end}}{{end}}>MySQL/MariaDB Database</option>
                     <option value="object" {{with $res.SrcType}}{{if eq $res.SrcType "object" }}selected{{end}}{{end}}>Files In Deployment or StatefulSet</option>
+                    <option value="ssh" {{with $res.SrcType}}{{if eq $res.SrcType "ssh" }}selected{{end}}{{end}}>Files In SSH</option>
                     <option value="pod" {{with $res.SrcType}}{{if eq $res.SrcType "pod" }}selected{{end}}{{end}}>Files In Pod</option>
                     <option value="mongo" {{with $res.SrcType}}{{if eq $res.SrcType "mongo" }}selected{{end}}{{end}}>MongoDB</option>
                     <option value="pg" {{with $res.SrcType}}{{if eq $res.SrcType "pg" }}selected{{end}}{{end}}>PostgreSQL</option>
                     <option value="bnkr" {{with $res.SrcType}}{{if eq $res.SrcType "bnkr" }}selected{{end}}{{end}}>Bnkr DB</option>
                 </select>
                 {{with .Form.Errors.Get "src_type"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+            </div>
+            <div class="mb-3">
+                <label for="exampleInputSrcAccess1" class="form-label">Access</label>
+                <select x-model="src_access" id="migration-src_access" name="src_access" class="form-select {{if .Form.Errors.Get "src_access"}} is-invalid {{else if
+                    .Form.Has "src_access" }} is-valid {{end}}">
+                    <option value="direct" {{with $res.SrcAccess}}{{if eq $res.SrcAccess "direct" }}selected{{end}}{{end}}>Direct</option>
+                    <option value="ssh" {{with $res.SrcAccess}}{{if eq $res.SrcAccess "ssh" }}selected{{end}}{{end}}>Behind SSH</option>
+                    <option value="k8s" {{with $res.SrcAccess}}{{if eq $res.SrcAccess "k8s" }}selected{{end}}{{end}}>Behind K8S</option>
+                </select>
+                {{with .Form.Errors.Get "src_access"}}
                 <div class="invalid-feedback">
                     {{.}}
                 </div>
@@ -112,6 +127,16 @@
                 <textarea name="src_ssh_key" class="form-control {{if .Form.Errors.Get "src_ssh_key"}} is-invalid {{else if
                     .Form.Has "src_ssh_key" }} is-valid {{end}}" id="exampleInputSrcSshKey1" aria-describedby="src_ssh_keyHelp" rows="3">{{$res.SrcSshKey}}</textarea>
                 {{with .Form.Errors.Get "src_ssh_key"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+            </div>
+            <div x-show="src_access=='k8s'" class="mb-3">
+                <label for="exampleInputSrcKubeconfig1" class="form-label">Kubeconfig</label>
+                <textarea name="src_kubeconfig" class="form-control {{if .Form.Errors.Get "src_kubeconfig"}} is-invalid {{else if
+                    .Form.Has "src_kubeconfig" }} is-valid {{end}}" id="exampleInputSrcKubeconfig1" aria-describedby="src_kubeconfigHelp" rows="3">{{$res.SrcKubeconfig}}</textarea>
+                {{with .Form.Errors.Get "src_kubeconfig"}}
                 <div class="invalid-feedback">
                     {{.}}
                 </div>
@@ -302,6 +327,20 @@
                 </div>
                 {{end}}
             </div>
+            <div class="mb-3">
+                <label for="exampleInputDestAccess1" class="form-label">Access</label>
+                <select x-model="dest_access" id="migration-dest_access" name="dest_access" class="form-select {{if .Form.Errors.Get "dest_access"}} is-invalid {{else if
+                    .Form.Has "dest_access" }} is-valid {{end}}">
+                    <option value="direct" {{with $res.DestAccess}}{{if eq $res.DestAccess "direct" }}selected{{end}}{{end}}>Direct</option>
+                    <option value="ssh" {{with $res.DestAccess}}{{if eq $res.DestAccess "ssh" }}selected{{end}}{{end}}>Behind SSH</option>
+                    <option value="k8s" {{with $res.DestAccess}}{{if eq $res.DestAccess "k8s" }}selected{{end}}{{end}}>Behind K8S</option>
+                </select>
+                {{with .Form.Errors.Get "dest_access"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+            </div>
             <div x-show="dest_type=='mongo' || dest_type=='pg'" class="mb-3">
                 <label for="exampleInputDestURI1" class="form-label">URI</label>
                 <input name="dest_uri" class="form-control {{if .Form.Errors.Get "dest_uri"}} is-invalid {{else if
@@ -351,6 +390,16 @@
                 <textarea name="dest_ssh_key" class="form-control {{if .Form.Errors.Get "dest_ssh_key"}} is-invalid {{else if
                     .Form.Has "dest_ssh_key" }} is-valid {{end}}" id="exampleInputDestSshKey1" aria-describedby="dest_ssh_keyHelp" rows="3">{{$res.DestSshKey}}</textarea>
                 {{with .Form.Errors.Get "dest_ssh_key"}}
+                <div class="invalid-feedback">
+                    {{.}}
+                </div>
+                {{end}}
+            </div>
+            <div x-show="dest_access=='k8s'" class="mb-3">
+                <label for="exampleInputDestKubeconfig1" class="form-label">Kubeconfig</label>
+                <textarea name="dest_kubeconfig" class="form-control {{if .Form.Errors.Get "dest_kubeconfig"}} is-invalid {{else if
+                    .Form.Has "dest_kubeconfig" }} is-valid {{end}}" id="exampleInputDestKubeconfig1" aria-describedby="dest_kubeconfigHelp" rows="3">{{$res.DestKubeconfig}}</textarea>
+                {{with .Form.Errors.Get "dest_kubeconfig"}}
                 <div class="invalid-feedback">
                     {{.}}
                 </div>

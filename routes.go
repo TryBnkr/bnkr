@@ -82,6 +82,7 @@ func routes(app *config.AppConfig) http.Handler {
 		mux.Post("/jobs/running/backups", services.Repo.GetRunningBackups)
 		mux.Post("/jobs/download/{jid}/{bid}", services.Repo.DownloadFile)
 		mux.Post("/jobs/running/{id}", services.Repo.GetRunningJobs)
+		mux.Post("/migration/{id}", services.Repo.MigrateNow)
 	})
 
 	mux.Get("/", func(rw http.ResponseWriter, r *http.Request) {
