@@ -290,27 +290,50 @@ func (m *Repository) PrepareMigration(b *dal.Migration, migrationName string, s3
 	}
 }
 
-func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) {
-	// Is the DB in K8S or SSH
-	// If the database inside SSH then run dump command on the server using the SSH details then move it to Bnkr
+func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) {
+	var o string
 	// Else if direct access is allowed then simply do the dump on Bnkr
-	if g.SrcAccess == "ssh" {
+	// If the database inside SSH then run dump command on the server using the SSH details then move it to Bnkr
+	switch g.SrcAccess {
+	// Is the DB in K8S or SSH or we have direct access to it
+	case "ssh":
 		// Create the SSH key file
 		sshKeyPath := c.TmpPath + "/" + "id_rsa"
 		err := ioutil.WriteFile(sshKeyPath, []byte(g.SrcSshKey), 0600)
 		if err != nil {
 			m.App.ErrorLog.Println(err)
-			return
+			return "", err
 		}
 
+		// Create the DB dump on the server
 		args := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.SrcSshUser + "@" + g.SrcSshHost, "cd /; mysqldump -h " + g.SrcDbHost + " -u " + g.SrcDbUser + " --port=" + g.SrcDbPort + " -p" + g.SrcDbPassword + " " + g.SrcDbName, "|", "gzip", ">", c.MigrationName}
 		cmd := exec.Command("ssh", args...)
 
 		output, err := utils.CmdExecutor(cmd)
 		if err != nil {
-			return
+			return "", err
 		}
+
+		// Move the dump DB to Bnkr
+		args2 := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.SrcSshUser + "@" + g.SrcSshHost + ":/" + c.MigrationName, c.MigrationName}
+		cmd2 := exec.Command("scp", args2...)
+		cmd2.Dir = c.TmpPath
+
+		output2, err := utils.CmdExecutor(cmd2)
+		if err != nil {
+			return "", err
+		}
+
+		o = output + `
+` + output2
+
+	case "k8s":
+
+	case "direct":
+
 	}
+
+	return o, nil
 }
 
 func (m *Repository) migrate(id int) {
