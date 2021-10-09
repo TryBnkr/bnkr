@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS public.migrations (
   src_files_path text NULL,
   src_s3_access_key text NULL,
   src_s3_secret_key text NULL,
-  src_storage_directory text NULL,
+  src_s3_file text NULL,
   src_ssh_host text NULL,
   src_ssh_port text NULL,
   src_ssh_user text NULL,

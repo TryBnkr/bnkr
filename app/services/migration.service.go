@@ -112,7 +112,7 @@ func (m *Repository) PostNewMigration(w http.ResponseWriter, r *http.Request) {
 	DestS3SecretKey := r.Form.Get("dest_s3_secret_key")
 	Emails := r.Form.Get("emails")
 	DestStorageDirectory := r.Form.Get("dest_storage_directory")
-	SrcStorageDirectory := r.Form.Get("src_storage_directory")
+	SrcS3File := r.Form.Get("src_s3_file")
 
 	values := &dal.Migration{
 		Name:                 migrationName,
@@ -132,7 +132,7 @@ func (m *Repository) PostNewMigration(w http.ResponseWriter, r *http.Request) {
 		SrcFilesPath:         SrcFilesPath,
 		SrcS3AccessKey:       SrcS3AccessKey,
 		SrcS3SecretKey:       SrcS3SecretKey,
-		SrcStorageDirectory:  SrcStorageDirectory,
+		SrcS3File:            SrcS3File,
 		SrcURI:               SrcURI,
 		SrcSshHost:           SrcSshHost,
 		SrcSshPort:           SrcSshPort,
@@ -270,8 +270,8 @@ func (m *Repository) PrepareMigration(b *dal.Migration, migrationName string, s3
 	migrationPath := dir + "/" + migrationName
 
 	s3Path := "/"
-	if b.SrcStorageDirectory != "" {
-		s3Path = "/" + b.SrcStorageDirectory + "/"
+	if b.DestStorageDirectory != "" {
+		s3Path = "/" + b.DestStorageDirectory + "/"
 	}
 
 	if s3FullPath == "" {
@@ -550,27 +550,27 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 			return "", err
 		}
 		defer file.Close()
-	
+
 		gunzip := exec.Command("gunzip")
 		gunzip.Stdin = file
 		args := []string{"-h", g.DestDbHost, "-u", g.DestDbUser, "-p" + g.DestDbPassword, g.DestDbName}
 		mysql := exec.Command("mysql", args...)
-	
+
 		// Get gunzip's stdout and attach it to mysql's stdin.
 		pipe, err := gunzip.StdoutPipe()
 		if err != nil {
 			return "", err
 		}
 		defer pipe.Close()
-	
+
 		mysql.Stdin = pipe
-	
+
 		// Run gunzip first.
 		err2 := gunzip.Start()
 		if err2 != nil {
 			return "", err
 		}
-	
+
 		err = mysql.Start()
 		if err != nil {
 			return "", err
@@ -579,7 +579,7 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 		if err != nil {
 			return "", err
 		}
-	
+
 		err = gunzip.Wait()
 		if err != nil {
 			return "", err

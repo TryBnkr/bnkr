@@ -294,11 +294,11 @@
                 {{end}}
             </div>
             <div class="mb-3">
-                <label for="exampleInputSrcStorageDirectory1" class="form-label">File on S3</label>
-                <input placeholder="2021/weekly/db.sql.gz" name="src_storage_directory" class="form-control {{if .Form.Errors.Get "src_storage_directory"}} is-invalid {{else
-                    if .Form.Has "src_storage_directory" }} is-valid {{end}}" value="{{$res.SrcStorageDirectory}}"
-                    id="exampleInputSrcStorageDirectory1" aria-describedby="src_storage_directoryHelp">
-                {{with .Form.Errors.Get "src_storage_directory"}}
+                <label for="exampleInputSrcS3File1" class="form-label">File on S3</label>
+                <input placeholder="2021/weekly/db.sql.gz" name="src_s3_file" class="form-control {{if .Form.Errors.Get "src_s3_file"}} is-invalid {{else
+                    if .Form.Has "src_s3_file" }} is-valid {{end}}" value="{{$res.SrcS3File}}"
+                    id="exampleInputSrcS3File1" aria-describedby="src_s3_fileHelp">
+                {{with .Form.Errors.Get "src_s3_file"}}
                 <div class="invalid-feedback">
                     {{.}}
                 </div>
