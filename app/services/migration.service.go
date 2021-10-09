@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -238,7 +239,7 @@ func (m *Repository) PrepareMigration(b *dal.Migration, migrationName string, s3
 	loc, _ := time.LoadLocation(b.Timezone)
 	currentTime := time.Now().In(loc).Format("2006.01.02-150405")
 	// Example ./bnkr/ad21d8b9-3663-4bfb-8978-30d0ec51a1b8
-	dir := "./bnkr/" + guuid.New().String()
+	dir, _ := filepath.Abs("./bnkr/" + guuid.New().String())
 
 	os.MkdirAll(dir, os.ModePerm)
 
@@ -366,11 +367,13 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		// Move the DB to Bnkr
 		args = []string{"cp", "--kubeconfig", kubeconfigPath, helperPodName + ":/" + c.MigrationName, c.MigrationName}
 		cmd = exec.Command("kubectl", args...)
+		cmd.Dir = c.TmpPath
 
 		output4, err := utils.CmdExecutor(cmd)
 		if err != nil {
 			return "", err
 		}
+
 		// Delete the helper pod
 		args = []string{"delete", "--kubeconfig", kubeconfigPath, "pod", helperPodName, "--ignore-not-found"}
 		cmd = exec.Command("kubectl", args...)
@@ -390,7 +393,51 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 
 ` + output5
 	case "direct":
+		// open the out file for writing
+		outfile, err := os.Create(c.MigrationPath)
+		if err != nil {
+			return "", err
+		}
+		defer outfile.Close()
 
+		args := []string{"-h", g.SrcDbHost, "-u", g.SrcDbUser, "--port=" + g.SrcDbPort, "-p" + g.SrcDbPassword, g.SrcDbName}
+		mysqldump := exec.Command("mysqldump", args...)
+
+		mysqldump.Stderr = os.Stderr
+
+		gzip := exec.Command("gzip")
+		gzip.Stdout = outfile
+
+		// Get mysqldump's stdout and attach it to gzip's stdin.
+		pipe, err := mysqldump.StdoutPipe()
+		if err != nil {
+			return "", err
+		}
+		defer pipe.Close()
+
+		gzip.Stdin = pipe
+
+		// Run mysqldump first.
+		err2 := mysqldump.Start()
+		if err2 != nil {
+			return "", err
+		}
+
+		err = gzip.Start()
+		if err != nil {
+			return "", err
+		}
+		err = gzip.Wait()
+		if err != nil {
+			return "", err
+		}
+
+		err = mysqldump.Wait()
+		if err != nil {
+			return "", err
+		}
+
+		o = "Database dump completed successfully!"
 	}
 
 	return o, nil
