@@ -594,6 +594,13 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 		}
 
 		o = "Database restore completed successfully!"
+
+	case "s3":
+		if err := Repo.UploadToS3(g.DestS3AccessKey, g.DestS3SecretKey, g.DestBucket, g.DestRegion, c.S3FullPath, c.MigrationPath); err != nil {
+			return "", err
+		}
+
+		o = "Database upload completed successfully!"
 	}
 
 	return o, nil

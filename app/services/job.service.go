@@ -347,8 +347,8 @@ func (m *Repository) DeleteExtraBackups(b *types.NewBackupDTO) error {
 	return nil
 }
 
-func (m *Repository) UploadToS3(b *types.NewBackupDTO, commons *BackupCommon) error {
-	file, err := os.Open(commons.BackupPath)
+func (m *Repository) UploadToS3(S3AccessKey string, S3SecretKey string, Bucket string, Region string, S3FullPath string, SrcFilePath string) error {
+	file, err := os.Open(SrcFilePath)
 	if err != nil {
 		return err
 	}
@@ -356,8 +356,8 @@ func (m *Repository) UploadToS3(b *types.NewBackupDTO, commons *BackupCommon) er
 	defer file.Close()
 
 	sess, err := session.NewSession(&aws.Config{
-		Region:      aws.String(b.Region),
-		Credentials: credentials.NewStaticCredentials(b.S3AccessKey, b.S3SecretKey, ""),
+		Region:      aws.String(Region),
+		Credentials: credentials.NewStaticCredentials(S3AccessKey, S3SecretKey, ""),
 	})
 
 	if err != nil {
@@ -369,12 +369,12 @@ func (m *Repository) UploadToS3(b *types.NewBackupDTO, commons *BackupCommon) er
 	// Upload the file's body to S3 bucket as an object with the key being the
 	// same as the filename.
 	_, err = uploader.Upload(&s3manager.UploadInput{
-		Bucket: aws.String(b.Bucket),
+		Bucket: aws.String(Bucket),
 
 		// Can also use the `filepath` standard library package to modify the
 		// filename as need for an S3 object key. Such as turning absolute path
 		// to a relative path.
-		Key: aws.String(commons.S3FullPath),
+		Key: aws.String(S3FullPath),
 
 		// The file to be uploaded. io.ReadSeeker is preferred as the Uploader
 		// will be able to optimize memory when uploading large content. io.Reader
@@ -744,7 +744,7 @@ func (m *Repository) DbBackup(b *types.NewBackupDTO, sendMail bool) (*dal.Job, e
 		return Repo.TerminateBackup(fmt.Sprintf("Failed to excute command: %s", strings.Replace("mysqldump "+strings.Join(args, " "), b.DbPassword, "******", 1)), commons.FailedStatus, &commons, b, sendMail)
 	}
 
-	if err := Repo.UploadToS3(b, &commons); err != nil {
+	if err := Repo.UploadToS3(b.S3AccessKey, b.S3SecretKey, b.Bucket, b.Region, commons.S3FullPath, commons.BackupPath); err != nil {
 		return Repo.TerminateBackup("Cant upload to S3", commons.FailedStatus, &commons, b, sendMail)
 	}
 
@@ -808,7 +808,7 @@ func (m *Repository) PgBackup(b *types.NewBackupDTO, sendMail bool) (*dal.Job, e
 		return Repo.TerminateBackup("Failed to excute pg_dump command!", commons.FailedStatus, &commons, b, sendMail)
 	}
 
-	if err := Repo.UploadToS3(b, &commons); err != nil {
+	if err := Repo.UploadToS3(b.S3AccessKey, b.S3SecretKey, b.Bucket, b.Region, commons.S3FullPath, commons.BackupPath); err != nil {
 		return Repo.TerminateBackup("Cant upload to S3", commons.FailedStatus, &commons, b, sendMail)
 	}
 
@@ -832,7 +832,7 @@ func (m *Repository) MongoDbBackup(b *types.NewBackupDTO, sendMail bool) (*dal.J
 	}
 
 	// Upload to S3
-	if err := Repo.UploadToS3(b, &commons); err != nil {
+	if err := Repo.UploadToS3(b.S3AccessKey, b.S3SecretKey, b.Bucket, b.Region, commons.S3FullPath, commons.BackupPath); err != nil {
 		return Repo.TerminateBackup("Cant upload to S3", commons.FailedStatus, &commons, b, sendMail)
 	}
 
@@ -907,7 +907,7 @@ func (m *Repository) FilesBackup(b *types.NewBackupDTO, sendMail bool) (*dal.Job
 	}
 
 	// Upload to S3
-	if err := Repo.UploadToS3(b, &commons); err != nil {
+	if err := Repo.UploadToS3(b.S3AccessKey, b.S3SecretKey, b.Bucket, b.Region, commons.S3FullPath, commons.BackupPath); err != nil {
 		return Repo.TerminateBackup("Cant upload to S3", commons.FailedStatus, &commons, b, sendMail)
 	}
 
