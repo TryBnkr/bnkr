@@ -601,6 +601,7 @@ func (m *Repository) migrate(id int) {
 
 	commons := Repo.PrepareMigration(migration, "", "")
 
+	// Create the backup
 	switch migration.SrcType {
 	case "db":
 		Repo.srcDB(migration, commons)
@@ -608,6 +609,7 @@ func (m *Repository) migrate(id int) {
 
 	}
 
+	// Restore the backup
 	switch migration.DestType {
 	case "db":
 		Repo.destDB(migration, commons)
