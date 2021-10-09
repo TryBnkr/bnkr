@@ -328,7 +328,67 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 ` + output2
 
 	case "k8s":
+		// Create Kubeconfig file
+		kubeconfigPath := c.TmpPath + "/" + "kubeconfig.yml"
+		err := ioutil.WriteFile(kubeconfigPath, []byte(g.SrcKubeconfig), 0600)
+		if err != nil {
+			m.App.ErrorLog.Println(err)
+			return "", err
+		}
 
+		// Create MariaDB helper pod
+		helperPodName := "bnkr-" + guuid.New().String()
+		args := []string{"run", helperPodName, "--kubeconfig", kubeconfigPath, "--rm", "--restart=Never", "--image", "mariadb:10.5.9-focal", "--command", "--", "sleep", "infinity"}
+		cmd := exec.Command("kubectl", args...)
+
+		output, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Wait for the pod to be ready
+		args = []string{"wait", "--kubeconfig", kubeconfigPath, "--for=condition=ready", "pod", helperPodName}
+		cmd = exec.Command("kubectl", args...)
+
+		output2, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Dump the DB in the pod
+		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; mysqldump -h " + g.SrcDbHost + " -u " + g.SrcDbUser + " --port=" + g.SrcDbPort + " -p" + g.SrcDbPassword + " " + g.SrcDbName, "|", "gzip", ">", c.MigrationName}
+		cmd = exec.Command("kubectl", args...)
+
+		output3, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+		// Move the DB to Bnkr
+		args = []string{"cp", "--kubeconfig", kubeconfigPath, helperPodName + ":/" + c.MigrationName, c.MigrationName}
+		cmd = exec.Command("kubectl", args...)
+
+		output4, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+		// Delete the helper pod
+		args = []string{"delete", "--kubeconfig", kubeconfigPath, "pod", helperPodName, "--ignore-not-found"}
+		cmd = exec.Command("kubectl", args...)
+
+		output5, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		o = output + `
+
+` + output2 + `
+
+` + output3 + `
+
+` + output4 + `
+
+` + output5
 	case "direct":
 
 	}
