@@ -238,7 +238,7 @@ type MigrationCommon struct {
 func (m *Repository) PrepareMigration(b *dal.Migration, migrationName string, s3FullPath string) MigrationCommon {
 	loc, _ := time.LoadLocation(b.Timezone)
 	currentTime := time.Now().In(loc).Format("2006.01.02-150405")
-	// Example ./bnkr/ad21d8b9-3663-4bfb-8978-30d0ec51a1b8
+	// Example /bnkr/ad21d8b9-3663-4bfb-8978-30d0ec51a1b8
 	dir, _ := filepath.Abs("./bnkr/" + guuid.New().String())
 
 	os.MkdirAll(dir, os.ModePerm)
@@ -438,6 +438,14 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		}
 
 		o = "Database dump completed successfully!"
+
+	case "s3":
+		// Download the file from S3
+		if err := Repo.DownloadFromS3(g.SrcS3AccessKey, g.SrcS3SecretKey, g.SrcBucket, g.SrcRegion, g.SrcS3File, c.MigrationPath); err != nil {
+			return "", err
+		}
+
+		o = "Database file download completed successfully!"
 	}
 
 	return o, nil

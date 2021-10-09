@@ -390,8 +390,8 @@ func (m *Repository) UploadToS3(b *types.NewBackupDTO, commons *BackupCommon) er
 	return nil
 }
 
-func (m *Repository) DownloadFromS3(b *types.NewBackupDTO, commons *BackupCommon) error {
-	file, err := os.Create(commons.BackupPath)
+func (m *Repository) DownloadFromS3(S3AccessKey string, S3SecretKey string, Bucket string, Region string, S3FullPath string, DestFilePath string) error {
+	file, err := os.Create(DestFilePath)
 	if err != nil {
 		return err
 	}
@@ -399,8 +399,8 @@ func (m *Repository) DownloadFromS3(b *types.NewBackupDTO, commons *BackupCommon
 	defer file.Close()
 
 	sess, err := session.NewSession(&aws.Config{
-		Region:      aws.String(b.Region),
-		Credentials: credentials.NewStaticCredentials(b.S3AccessKey, b.S3SecretKey, ""),
+		Region:      aws.String(Region),
+		Credentials: credentials.NewStaticCredentials(S3AccessKey, S3SecretKey, ""),
 	})
 
 	if err != nil {
@@ -411,8 +411,8 @@ func (m *Repository) DownloadFromS3(b *types.NewBackupDTO, commons *BackupCommon
 
 	_, err = downloader.Download(file,
 		&s3.GetObjectInput{
-			Bucket: aws.String(b.Bucket),
-			Key:    aws.String(commons.S3FullPath),
+			Bucket: aws.String(Bucket),
+			Key:    aws.String(S3FullPath),
 		})
 	if err != nil {
 		return err
@@ -523,7 +523,7 @@ func (m *Repository) TerminateRestore(message string, status string, commons *Ba
 func (m *Repository) FilesRestore(b *types.NewBackupDTO, j *types.NewJobDTO) error {
 	commons := Repo.PrepareBackup(b, "", j.File)
 
-	if err := Repo.DownloadFromS3(b, &commons); err != nil {
+	if err := Repo.DownloadFromS3(b.S3AccessKey, b.S3SecretKey, b.Bucket, b.Region, commons.S3FullPath, commons.BackupPath); err != nil {
 		return Repo.TerminateRestore("Can't download from S3", commons.FailedStatus, &commons, b, err)
 	}
 
@@ -571,7 +571,7 @@ func (m *Repository) FilesRestore(b *types.NewBackupDTO, j *types.NewJobDTO) err
 func (m *Repository) DbRestore(b *types.NewBackupDTO, j *types.NewJobDTO) error {
 	commons := Repo.PrepareBackup(b, "", j.File)
 
-	if err := Repo.DownloadFromS3(b, &commons); err != nil {
+	if err := Repo.DownloadFromS3(b.S3AccessKey, b.S3SecretKey, b.Bucket, b.Region, commons.S3FullPath, commons.BackupPath); err != nil {
 		return Repo.TerminateRestore("Can't download from S3", commons.FailedStatus, &commons, b, err)
 	}
 
@@ -621,7 +621,7 @@ func (m *Repository) DbRestore(b *types.NewBackupDTO, j *types.NewJobDTO) error 
 func (m *Repository) PgRestore(b *types.NewBackupDTO, j *types.NewJobDTO) error {
 	commons := Repo.PrepareBackup(b, "", j.File)
 
-	if err := Repo.DownloadFromS3(b, &commons); err != nil {
+	if err := Repo.DownloadFromS3(b.S3AccessKey, b.S3SecretKey, b.Bucket, b.Region, commons.S3FullPath, commons.BackupPath); err != nil {
 		return Repo.TerminateRestore("Can't download from S3", commons.FailedStatus, &commons, b, err)
 	}
 
@@ -677,7 +677,7 @@ func (m *Repository) PgRestore(b *types.NewBackupDTO, j *types.NewJobDTO) error 
 func (m *Repository) MongoDbRestore(b *types.NewBackupDTO, j *types.NewJobDTO) error {
 	commons := Repo.PrepareBackup(b, "", j.File)
 
-	if err := Repo.DownloadFromS3(b, &commons); err != nil {
+	if err := Repo.DownloadFromS3(b.S3AccessKey, b.S3SecretKey, b.Bucket, b.Region, commons.S3FullPath, commons.BackupPath); err != nil {
 		return Repo.TerminateRestore("Can't download from S3", commons.FailedStatus, &commons, b, err)
 	}
 
