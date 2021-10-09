@@ -443,6 +443,154 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 	return o, nil
 }
 
+func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error) {
+	var o string
+
+	switch g.DestAccess {
+	case "ssh":
+		// Create the SSH key file
+		sshKeyPath := c.TmpPath + "/" + "id_rsa"
+		err := ioutil.WriteFile(sshKeyPath, []byte(g.DestSshKey), 0600)
+		if err != nil {
+			m.App.ErrorLog.Println(err)
+			return "", err
+		}
+
+		// Move the dump DB to server
+		args2 := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", c.MigrationName, g.DestSshUser + "@" + g.DestSshHost + ":/" + c.MigrationName}
+		cmd2 := exec.Command("scp", args2...)
+		cmd2.Dir = c.TmpPath
+
+		output, err := utils.CmdExecutor(cmd2)
+		if err != nil {
+			return "", err
+		}
+
+		// Restore the DB dump on the server
+		args := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.DestSshUser + "@" + g.DestSshHost, "cd /; gunzip", "<", c.MigrationName, "|", "mysql", "--max_allowed_packet=512M", "-h", g.DestDbHost, "-u", g.DestDbUser, "-p" + g.DestDbPassword, g.DestDbName}
+		cmd := exec.Command("ssh", args...)
+
+		output2, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		o = output + `
+` + output2
+
+	case "k8s":
+		// Create Kubeconfig file
+		kubeconfigPath := c.TmpPath + "/" + "kubeconfig.yml"
+		err := ioutil.WriteFile(kubeconfigPath, []byte(g.DestKubeconfig), 0600)
+		if err != nil {
+			m.App.ErrorLog.Println(err)
+			return "", err
+		}
+
+		// Create MariaDB helper pod
+		helperPodName := "bnkr-" + guuid.New().String()
+
+		args := []string{"run", helperPodName, "--kubeconfig", kubeconfigPath, "--rm", "--restart=Never", "--image", "mariadb:10.5.9-focal", "--command", "--", "sleep", "infinity"}
+		cmd := exec.Command("kubectl", args...)
+
+		output, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Wait for the pod to be ready
+		args = []string{"wait", "--kubeconfig", kubeconfigPath, "--for=condition=ready", "pod", helperPodName}
+		cmd = exec.Command("kubectl", args...)
+
+		output2, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Move the DB dump to pod
+		args = []string{"cp", "--kubeconfig", kubeconfigPath, c.MigrationName, helperPodName + ":/" + c.MigrationName}
+		cmd = exec.Command("kubectl", args...)
+		cmd.Dir = c.TmpPath
+
+		output3, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Restore the DB on the pod
+		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; gunzip", "<", c.MigrationName, "|", "mysql", "--max_allowed_packet=512M", "-h", g.DestDbHost, "-u", g.DestDbUser, "-p" + g.DestDbPassword, g.DestDbName}
+		cmd = exec.Command("kubectl", args...)
+
+		output4, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Delete the helper pod
+		args = []string{"delete", "--kubeconfig", kubeconfigPath, "pod", helperPodName, "--ignore-not-found"}
+		cmd = exec.Command("kubectl", args...)
+
+		output5, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		o = output + `
+
+` + output2 + `
+
+` + output3 + `
+
+` + output4 + `
+
+` + output5
+	case "direct":
+		file, err := os.Open(c.MigrationPath)
+		if err != nil {
+			return "", err
+		}
+		defer file.Close()
+	
+		gunzip := exec.Command("gunzip")
+		gunzip.Stdin = file
+		args := []string{"-h", g.DestDbHost, "-u", g.DestDbUser, "-p" + g.DestDbPassword, g.DestDbName}
+		mysql := exec.Command("mysql", args...)
+	
+		// Get gunzip's stdout and attach it to mysql's stdin.
+		pipe, err := gunzip.StdoutPipe()
+		if err != nil {
+			return "", err
+		}
+		defer pipe.Close()
+	
+		mysql.Stdin = pipe
+	
+		// Run gunzip first.
+		err2 := gunzip.Start()
+		if err2 != nil {
+			return "", err
+		}
+	
+		err = mysql.Start()
+		if err != nil {
+			return "", err
+		}
+		err = mysql.Wait()
+		if err != nil {
+			return "", err
+		}
+	
+		err = gunzip.Wait()
+		if err != nil {
+			return "", err
+		}
+
+		o = "Database restore completed successfully!"
+	}
+
+	return o, nil
+}
+
 func (m *Repository) migrate(id int) {
 	migration := &dal.Migration{}
 
@@ -456,6 +604,13 @@ func (m *Repository) migrate(id int) {
 	switch migration.SrcType {
 	case "db":
 		Repo.srcDB(migration, commons)
+	case "ssh":
+
+	}
+
+	switch migration.DestType {
+	case "db":
+		Repo.destDB(migration, commons)
 	case "ssh":
 
 	}
