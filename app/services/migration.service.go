@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -299,8 +298,7 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 	// Is the DB in K8S or SSH or we have direct access to it
 	case "ssh":
 		// Create the SSH key file
-		sshKeyPath := c.TmpPath + "/" + "id_rsa"
-		err := ioutil.WriteFile(sshKeyPath, []byte(g.SrcSshKey), 0600)
+		sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.SrcSshKey)
 		if err != nil {
 			m.App.ErrorLog.Println(err)
 			return "", err
@@ -330,10 +328,8 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 
 	case "k8s":
 		// Create Kubeconfig file
-		kubeconfigPath := c.TmpPath + "/" + "kubeconfig.yml"
-		err := ioutil.WriteFile(kubeconfigPath, []byte(g.SrcKubeconfig), 0600)
+		kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.SrcKubeconfig)
 		if err != nil {
-			m.App.ErrorLog.Println(err)
 			return "", err
 		}
 
@@ -451,14 +447,496 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 	return o, nil
 }
 
+func (m *Repository) srcPG(g *dal.Migration, c MigrationCommon) (string, error) {
+	var o string
+
+	uri := g.SrcURI
+	if g.SrcType == "bnkr" {
+		uri = m.App.DbUri
+	}
+	// Else if direct access is allowed then simply do the dump on Bnkr
+	// If the database inside SSH then run dump command on the server using the SSH details then move it to Bnkr
+	switch g.SrcAccess {
+	// Is the DB in K8S or SSH or we have direct access to it
+	case "ssh":
+		// Create the SSH key file
+		sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.SrcSshKey)
+		if err != nil {
+			m.App.ErrorLog.Println(err)
+			return "", err
+		}
+
+		// Create the DB dump on the server
+		args := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.SrcSshUser + "@" + g.SrcSshHost, "cd /; pg_dump --dbname=" + uri, "|", "gzip", ">", c.MigrationName}
+		cmd := exec.Command("ssh", args...)
+
+		output, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Move the dump DB to Bnkr
+		args2 := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.SrcSshUser + "@" + g.SrcSshHost + ":/" + c.MigrationName, c.MigrationName}
+		cmd2 := exec.Command("scp", args2...)
+		cmd2.Dir = c.TmpPath
+
+		output2, err := utils.CmdExecutor(cmd2)
+		if err != nil {
+			return "", err
+		}
+
+		o = output + `
+` + output2
+
+	case "k8s":
+		// Create Kubeconfig file
+		kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.SrcKubeconfig)
+		if err != nil {
+			return "", err
+		}
+
+		// Create postgres helper pod
+		helperPodName := "bnkr-" + guuid.New().String()
+		args := []string{"run", helperPodName, "--kubeconfig", kubeconfigPath, "--rm", "--restart=Never", "--image", "postgres:13-alpine", "--command", "--", "sleep", "infinity"}
+		cmd := exec.Command("kubectl", args...)
+
+		output, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Wait for the pod to be ready
+		args = []string{"wait", "--kubeconfig", kubeconfigPath, "--for=condition=ready", "pod", helperPodName}
+		cmd = exec.Command("kubectl", args...)
+
+		output2, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Dump the DB in the pod
+		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; pg_dump --dbname=" + uri, "|", "gzip", ">", c.MigrationName}
+		cmd = exec.Command("kubectl", args...)
+
+		output3, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Move the DB to Bnkr
+		args = []string{"cp", "--kubeconfig", kubeconfigPath, helperPodName + ":/" + c.MigrationName, c.MigrationName}
+		cmd = exec.Command("kubectl", args...)
+		cmd.Dir = c.TmpPath
+
+		output4, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Delete the helper pod
+		args = []string{"delete", "--kubeconfig", kubeconfigPath, "pod", helperPodName, "--ignore-not-found"}
+		cmd = exec.Command("kubectl", args...)
+
+		output5, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		o = output + `
+
+` + output2 + `
+
+` + output3 + `
+
+` + output4 + `
+
+` + output5
+	case "direct":
+		// open the out file for writing
+		outfile, err := os.Create(c.MigrationPath)
+		if err != nil {
+			return "", err
+		}
+		defer outfile.Close()
+
+		args := []string{"--dbname=" + uri}
+		pg_dump := exec.Command("pg_dump", args...)
+
+		pg_dump.Stderr = os.Stderr
+
+		gzip := exec.Command("gzip")
+		gzip.Stdout = outfile
+
+		// Get pg_dump's stdout and attach it to gzip's stdin.
+		pipe, err := pg_dump.StdoutPipe()
+		if err != nil {
+			return "", err
+		}
+		defer pipe.Close()
+
+		gzip.Stdin = pipe
+
+		// Run pg_dump first.
+		err2 := pg_dump.Start()
+		if err2 != nil {
+			return "", err
+		}
+
+		err = gzip.Start()
+		if err != nil {
+			return "", err
+		}
+		err = gzip.Wait()
+		if err != nil {
+			return "", err
+		}
+
+		err = pg_dump.Wait()
+		if err != nil {
+			return "", err
+		}
+
+		o = "Database dump completed successfully!"
+
+	case "s3":
+		// Download the file from S3
+		if err := Repo.DownloadFromS3(g.SrcS3AccessKey, g.SrcS3SecretKey, g.SrcBucket, g.SrcRegion, g.SrcS3File, c.MigrationPath); err != nil {
+			return "", err
+		}
+
+		o = "Database file download completed successfully!"
+	}
+
+	return o, nil
+}
+
+func (m *Repository) srcMongo(g *dal.Migration, c MigrationCommon) (string, error) {
+	var o string
+
+	// Else if direct access is allowed then simply do the dump on Bnkr
+	// If the database inside SSH then run dump command on the server using the SSH details then move it to Bnkr
+	switch g.SrcAccess {
+	// Is the DB in K8S or SSH or we have direct access to it
+	case "ssh":
+		// Create the SSH key file
+		sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.SrcSshKey)
+		if err != nil {
+			m.App.ErrorLog.Println(err)
+			return "", err
+		}
+
+		// Create the DB dump on the server
+		args := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.SrcSshUser + "@" + g.SrcSshHost, "cd /; mongodump --uri=" + g.SrcURI, "--gzip", "--archive=/" + c.MigrationName}
+		cmd := exec.Command("ssh", args...)
+
+		output, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Move the dump DB to Bnkr
+		args2 := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.SrcSshUser + "@" + g.SrcSshHost + ":/" + c.MigrationName, c.MigrationName}
+		cmd2 := exec.Command("scp", args2...)
+		cmd2.Dir = c.TmpPath
+
+		output2, err := utils.CmdExecutor(cmd2)
+		if err != nil {
+			return "", err
+		}
+
+		o = output + `
+` + output2
+
+	case "k8s":
+		// Create Kubeconfig file
+		kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.SrcKubeconfig)
+		if err != nil {
+			return "", err
+		}
+
+		// Create MongoDB helper pod
+		helperPodName := "bnkr-" + guuid.New().String()
+		args := []string{"run", helperPodName, "--kubeconfig", kubeconfigPath, "--rm", "--restart=Never", "--image", "mongo:5.0.3-focal", "--command", "--", "sleep", "infinity"}
+		cmd := exec.Command("kubectl", args...)
+
+		output, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Wait for the pod to be ready
+		args = []string{"wait", "--kubeconfig", kubeconfigPath, "--for=condition=ready", "pod", helperPodName}
+		cmd = exec.Command("kubectl", args...)
+
+		output2, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Dump the DB in the pod
+		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; mongodump --uri=" + g.SrcURI, "--gzip", "--archive=/" + c.MigrationName}
+		cmd = exec.Command("kubectl", args...)
+
+		output3, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Move the DB to Bnkr
+		args = []string{"cp", "--kubeconfig", kubeconfigPath, helperPodName + ":/" + c.MigrationName, c.MigrationName}
+		cmd = exec.Command("kubectl", args...)
+		cmd.Dir = c.TmpPath
+
+		output4, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Delete the helper pod
+		args = []string{"delete", "--kubeconfig", kubeconfigPath, "pod", helperPodName, "--ignore-not-found"}
+		cmd = exec.Command("kubectl", args...)
+
+		output5, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		o = output + `
+
+` + output2 + `
+
+` + output3 + `
+
+` + output4 + `
+
+` + output5
+	case "direct":
+		// Dump the database
+		args := []string{"--uri=" + g.SrcURI, "--gzip", "--archive=" + c.MigrationPath}
+		mongodump := exec.Command("mongodump", args...)
+
+		output6, err := utils.CmdExecutor(mongodump)
+		if err != nil {
+			return "", err
+		}
+
+		o = output6
+
+	case "s3":
+		// Download the file from S3
+		if err := Repo.DownloadFromS3(g.SrcS3AccessKey, g.SrcS3SecretKey, g.SrcBucket, g.SrcRegion, g.SrcS3File, c.MigrationPath); err != nil {
+			return "", err
+		}
+
+		o = "Database file download completed successfully!"
+	}
+
+	return o, nil
+}
+
+func (m *Repository) srcK8SFiles(g *dal.Migration, c MigrationCommon) (string, error) {
+	var o string
+
+	kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.SrcKubeconfig)
+	if err != nil {
+		m.App.ErrorLog.Println(err)
+		return "", err
+	}
+
+	podName := g.SrcPodName
+
+	var args []string
+
+	if g.SrcType != "pod" {
+		args = []string{"get", "pod", "--kubeconfig", kubeconfigPath, "-l", g.SrcPodLabel, "-o", "jsonpath={.items[0].metadata.name}"}
+		podNameBytes, err := exec.Command("kubectl", args...).Output()
+		if err != nil {
+			return "", err
+		}
+
+		podName = string(podNameBytes)
+	}
+
+	// Create tarball inside the deployment container
+	args = []string{"exec", "-c", g.SrcContainer, podName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd / ; tar -czf " + c.MigrationName + " -C " + g.SrcFilesPath + " ."}
+	cmd := exec.Command("kubectl", args...)
+
+	output, err := utils.CmdExecutor(cmd)
+	if err != nil {
+		return "", err
+	}
+
+	// Move the tarball to Bnkr
+	args = []string{"cp", "--kubeconfig", kubeconfigPath, podName + ":/" + c.MigrationName, c.MigrationName}
+	cmd = exec.Command("kubectl", args...)
+	cmd.Dir = c.TmpPath
+
+	output2, err := utils.CmdExecutor(cmd)
+	if err != nil {
+		return "", err
+	}
+
+	// Cleanup, remove the tarball file from the deployment
+	args = []string{"exec", "--kubeconfig", kubeconfigPath, "-c", g.SrcContainer, podName, "--", "sh", "-c", "cd / ; rm " + c.MigrationName}
+	cmd = exec.Command("kubectl", args...)
+	cmd.Dir = c.TmpPath
+
+	output3, err := utils.CmdExecutor(cmd)
+	if err != nil {
+		return "", err
+	}
+
+	o = output + `
+` + output2 + `
+` + output3
+
+	return o, nil
+}
+
+func (m *Repository) srcSSHFiles(g *dal.Migration, c MigrationCommon) (string, error) {
+	var o string
+
+	sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.SrcSshKey)
+	if err != nil {
+		m.App.ErrorLog.Println(err)
+		return "", err
+	}
+
+	// Create the tarball on the server
+	args := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.SrcSshUser + "@" + g.SrcSshHost, "cd /; tar -czf " + c.MigrationName + " -C " + g.SrcFilesPath + " ."}
+	cmd := exec.Command("ssh", args...)
+
+	output, err := utils.CmdExecutor(cmd)
+	if err != nil {
+		return "", err
+	}
+
+	// Move the tarball DB to Bnkr
+	args2 := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.SrcSshUser + "@" + g.SrcSshHost + ":/" + c.MigrationName, c.MigrationName}
+	cmd2 := exec.Command("scp", args2...)
+	cmd2.Dir = c.TmpPath
+
+	output2, err := utils.CmdExecutor(cmd2)
+	if err != nil {
+		return "", err
+	}
+
+	o = output + `
+` + output2
+
+	return o, nil
+}
+
+func (m *Repository) destK8SFiles(g *dal.Migration, c MigrationCommon) (string, error) {
+	var o string
+
+	kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.DestKubeconfig)
+	if err != nil {
+		m.App.ErrorLog.Println(err)
+		return "", err
+	}
+
+	podName := g.DestPodName
+
+	var args []string
+
+	if g.DestType != "pod" {
+		args = []string{"get", "pod", "--kubeconfig", kubeconfigPath, "-l", g.DestPodLabel, "-o", "jsonpath={.items[0].metadata.name}"}
+		podNameBytes, err := exec.Command("kubectl", args...).Output()
+		if err != nil {
+			return "", err
+		}
+
+		podName = string(podNameBytes)
+	}
+
+	// Copy the tarball to pod
+	args = []string{"cp", "--kubeconfig", kubeconfigPath, c.MigrationName, podName + ":/" + c.MigrationName}
+	cmd := exec.Command("kubectl", args...)
+	cmd.Dir = c.TmpPath
+
+	output, err := utils.CmdExecutor(cmd)
+	if err != nil {
+		return "", err
+	}
+
+	// Extract the tarball
+	args = []string{"exec", podName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd / ; tar -xzf " + c.MigrationName + " -C " + g.DestFilesPath}
+	cmd = exec.Command("kubectl", args...)
+
+	output2, err := utils.CmdExecutor(cmd)
+	if err != nil {
+		return "", err
+	}
+
+	// Cleanup, remove the tarball file from the pod
+	args = []string{"exec", "--kubeconfig", kubeconfigPath, "-c", g.DestContainer, podName, "--", "sh", "-c", "cd / ; rm " + c.MigrationName}
+	cmd = exec.Command("kubectl", args...)
+
+	output3, err := utils.CmdExecutor(cmd)
+	if err != nil {
+		return "", err
+	}
+
+	o = output + `
+` + output2 + `
+` + output3
+
+	return o, nil
+}
+
+func (m *Repository) destSSHFiles(g *dal.Migration, c MigrationCommon) (string, error) {
+	var o string
+
+	// Create the SSH key file
+	sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.DestSshKey)
+	if err != nil {
+		m.App.ErrorLog.Println(err)
+		return "", err
+	}
+
+	// Move the tarball to server
+	args2 := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", c.MigrationName, g.DestSshUser + "@" + g.DestSshHost + ":/" + c.MigrationName}
+	cmd2 := exec.Command("scp", args2...)
+	cmd2.Dir = c.TmpPath
+
+	output, err := utils.CmdExecutor(cmd2)
+	if err != nil {
+		return "", err
+	}
+
+	// Restore the files on the server
+	args := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.DestSshUser + "@" + g.DestSshHost, "cd /; tar -xzf " + c.MigrationName + " -C " + g.DestFilesPath}
+	cmd := exec.Command("ssh", args...)
+
+	output2, err := utils.CmdExecutor(cmd)
+	if err != nil {
+		return "", err
+	}
+
+	// Cleanup, remove the tarball file from the server
+	args3 := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.DestSshUser + "@" + g.DestSshHost, "cd /; rm " + c.MigrationName}
+	cmd3 := exec.Command("ssh", args3...)
+
+	output3, err := utils.CmdExecutor(cmd3)
+	if err != nil {
+		return "", err
+	}
+
+	o = output + `
+` + output2 + `
+` + output3
+
+	return o, nil
+}
+
 func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error) {
 	var o string
 
 	switch g.DestAccess {
 	case "ssh":
 		// Create the SSH key file
-		sshKeyPath := c.TmpPath + "/" + "id_rsa"
-		err := ioutil.WriteFile(sshKeyPath, []byte(g.DestSshKey), 0600)
+		sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.DestSshKey)
 		if err != nil {
 			m.App.ErrorLog.Println(err)
 			return "", err
@@ -488,10 +966,8 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 
 	case "k8s":
 		// Create Kubeconfig file
-		kubeconfigPath := c.TmpPath + "/" + "kubeconfig.yml"
-		err := ioutil.WriteFile(kubeconfigPath, []byte(g.DestKubeconfig), 0600)
+		kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.DestKubeconfig)
 		if err != nil {
-			m.App.ErrorLog.Println(err)
 			return "", err
 		}
 
@@ -606,31 +1082,388 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 	return o, nil
 }
 
-func (m *Repository) migrate(id int) {
+func (m *Repository) destPG(g *dal.Migration, c MigrationCommon) (string, error) {
+	var o string
+
+	uri := g.DestURI
+	if g.DestType == "bnkr" {
+		uri = m.App.DbUri
+	}
+
+	switch g.DestAccess {
+	case "ssh":
+		// Create the SSH key file
+		sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.DestSshKey)
+		if err != nil {
+			m.App.ErrorLog.Println(err)
+			return "", err
+		}
+
+		// Move the dump DB to server
+		args2 := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", c.MigrationName, g.DestSshUser + "@" + g.DestSshHost + ":/" + c.MigrationName}
+		cmd2 := exec.Command("scp", args2...)
+		cmd2.Dir = c.TmpPath
+
+		output, err := utils.CmdExecutor(cmd2)
+		if err != nil {
+			return "", err
+		}
+
+		// Restore the DB dump on the server
+		args := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.DestSshUser + "@" + g.DestSshHost, "cd /; gunzip", "<", c.MigrationName, "|", "psql", uri}
+		cmd := exec.Command("ssh", args...)
+
+		output2, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		o = output + `
+` + output2
+
+	case "k8s":
+		// Create Kubeconfig file
+		kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.DestKubeconfig)
+		if err != nil {
+			return "", err
+		}
+
+		// Create postgres helper pod
+		helperPodName := "bnkr-" + guuid.New().String()
+		args := []string{"run", helperPodName, "--kubeconfig", kubeconfigPath, "--rm", "--restart=Never", "--image", "postgres:13-alpine", "--command", "--", "sleep", "infinity"}
+		cmd := exec.Command("kubectl", args...)
+
+		output, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Wait for the pod to be ready
+		args = []string{"wait", "--kubeconfig", kubeconfigPath, "--for=condition=ready", "pod", helperPodName}
+		cmd = exec.Command("kubectl", args...)
+
+		output2, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Move the DB dump to pod
+		args = []string{"cp", "--kubeconfig", kubeconfigPath, c.MigrationName, helperPodName + ":/" + c.MigrationName}
+		cmd = exec.Command("kubectl", args...)
+		cmd.Dir = c.TmpPath
+
+		output3, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Restore the DB on the pod
+		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; gunzip", "<", c.MigrationName, "|", "psql", uri}
+		cmd = exec.Command("kubectl", args...)
+
+		output4, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Delete the helper pod
+		args = []string{"delete", "--kubeconfig", kubeconfigPath, "pod", helperPodName, "--ignore-not-found"}
+		cmd = exec.Command("kubectl", args...)
+
+		output5, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		o = output + `
+
+` + output2 + `
+
+` + output3 + `
+
+` + output4 + `
+
+` + output5
+	case "direct":
+		file, err := os.Open(c.MigrationPath)
+		if err != nil {
+			return "", err
+		}
+		defer file.Close()
+
+		gunzip := exec.Command("gunzip")
+		gunzip.Stdin = file
+
+		args := []string{uri}
+		psql := exec.Command("psql", args...)
+
+		// Get gunzip's stdout and attach it to psql's stdin.
+		pipe, err := gunzip.StdoutPipe()
+		if err != nil {
+			return "", err
+		}
+		defer pipe.Close()
+
+		psql.Stdin = pipe
+
+		// Run gunzip first.
+		err2 := gunzip.Start()
+		if err2 != nil {
+			return "", err
+		}
+
+		err = psql.Start()
+		if err != nil {
+			return "", err
+		}
+		err = psql.Wait()
+		if err != nil {
+			return "", err
+		}
+
+		err = gunzip.Wait()
+		if err != nil {
+			return "", err
+		}
+
+		o = "Database restore completed successfully!"
+
+	case "s3":
+		if err := Repo.UploadToS3(g.DestS3AccessKey, g.DestS3SecretKey, g.DestBucket, g.DestRegion, c.S3FullPath, c.MigrationPath); err != nil {
+			return "", err
+		}
+
+		o = "Database upload completed successfully!"
+	}
+
+	return o, nil
+}
+
+func (m *Repository) destMongo(g *dal.Migration, c MigrationCommon) (string, error) {
+	var o string
+
+	switch g.DestAccess {
+	case "ssh":
+		// Create the SSH key file
+		sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.DestSshKey)
+		if err != nil {
+			m.App.ErrorLog.Println(err)
+			return "", err
+		}
+
+		// Move the dump DB to server
+		args2 := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", c.MigrationName, g.DestSshUser + "@" + g.DestSshHost + ":/" + c.MigrationName}
+		cmd2 := exec.Command("scp", args2...)
+		cmd2.Dir = c.TmpPath
+
+		output, err := utils.CmdExecutor(cmd2)
+		if err != nil {
+			return "", err
+		}
+
+		// Restore the DB dump on the server
+		args := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.DestSshUser + "@" + g.DestSshHost, "cd /; mongorestore", "--uri=" + g.DestURI, "--gzip", "--drop", "--archive=/" + c.MigrationName}
+		cmd := exec.Command("ssh", args...)
+
+		output2, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		o = output + `
+` + output2
+
+	case "k8s":
+		// Create Kubeconfig file
+		kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.DestKubeconfig)
+		if err != nil {
+			return "", err
+		}
+
+		// Create MongoDB helper pod
+		helperPodName := "bnkr-" + guuid.New().String()
+		args := []string{"run", helperPodName, "--kubeconfig", kubeconfigPath, "--rm", "--restart=Never", "--image", "mongo:5.0.3-focal", "--command", "--", "sleep", "infinity"}
+		cmd := exec.Command("kubectl", args...)
+
+		output, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Wait for the pod to be ready
+		args = []string{"wait", "--kubeconfig", kubeconfigPath, "--for=condition=ready", "pod", helperPodName}
+		cmd = exec.Command("kubectl", args...)
+
+		output2, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Move the DB dump to pod
+		args = []string{"cp", "--kubeconfig", kubeconfigPath, c.MigrationName, helperPodName + ":/" + c.MigrationName}
+		cmd = exec.Command("kubectl", args...)
+		cmd.Dir = c.TmpPath
+
+		output3, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Restore the DB on the pod
+		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; mongorestore", "--uri=" + g.DestURI, "--gzip", "--drop", "--archive=/" + c.MigrationName}
+		cmd = exec.Command("kubectl", args...)
+
+		output4, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		// Delete the helper pod
+		args = []string{"delete", "--kubeconfig", kubeconfigPath, "pod", helperPodName, "--ignore-not-found"}
+		cmd = exec.Command("kubectl", args...)
+
+		output5, err := utils.CmdExecutor(cmd)
+		if err != nil {
+			return "", err
+		}
+
+		o = output + `
+
+` + output2 + `
+
+` + output3 + `
+
+` + output4 + `
+
+` + output5
+	case "direct":
+		args := []string{"--uri=" + g.DestURI, "--gzip", "--drop", "--archive=" + c.MigrationPath}
+		mongodump := exec.Command("mongorestore", args...)
+
+		output6, err := utils.CmdExecutor(mongodump)
+		if err != nil {
+			return "", err
+		}
+
+		o = output6
+
+	case "s3":
+		if err := Repo.UploadToS3(g.DestS3AccessKey, g.DestS3SecretKey, g.DestBucket, g.DestRegion, c.S3FullPath, c.MigrationPath); err != nil {
+			return "", err
+		}
+
+		o = "Database upload completed successfully!"
+	}
+
+	return o, nil
+}
+
+func (m *Repository) UpdateMigration(commons *MigrationCommon, status string, b *dal.Migration) (*dal.Migration, error) {
+	o := &dal.Migration{
+		CreatedAt: commons.StartedAt,
+		UpdatedAt: commons.StartedAt,
+		File:      commons.S3FullPath,
+		CompletedAt: sql.NullTime{
+			Time:  time.Now(),
+			Valid: true,
+		},
+		Status: status,
+		Migration: b.ID,
+	}
+
+	if _, err := dal.UpdateMigration(o); err != nil {
+		return nil, err
+	}
+
+	return o, nil
+}
+
+func (m *Repository) TerminateMigration(message string, status string, commons *MigrationCommon, b *dal.Migration, sendMail bool) (*dal.Migration, error) {
+	if status != "success" {
+		commons.Msg.Content = message
+		m.App.MailChan <- commons.Msg
+	} else {
+		if sendMail {
+			commons.Msg.Subject = "Migration Succeeded!"
+			commons.Msg.Content = fmt.Sprintf("The migration process for the migration %s completed successfully", b.Name)
+			m.App.MailChan <- commons.Msg
+		}
+	}
+
+	os.RemoveAll(commons.TmpPath)
+	return Repo.UpdateMigration(commons, status, b)
+}
+
+func (m *Repository) migrate(id int) error {
 	migration := &dal.Migration{}
 
 	if err := dal.FindMigrationById(migration, id); err != nil {
 		m.App.ErrorLog.Println(err)
-		return
+		return err
 	}
 
 	commons := Repo.PrepareMigration(migration, "", "")
 
+	var srcErr, destErr error
+	var srcOut, destOut string
+
 	// Create the backup
 	switch migration.SrcType {
+	// MySQL/MariaDB Database
 	case "db":
-		Repo.srcDB(migration, commons)
-	case "ssh":
+		srcOut, srcErr = Repo.srcDB(migration, commons)
 
+	case "pg":
+	case "bnkr":
+		srcOut, srcErr = Repo.srcPG(migration, commons)
+
+	case "mongo":
+		srcOut, srcErr = Repo.srcMongo(migration, commons)
+
+	// Files In SSH
+	case "ssh":
+		srcOut, srcErr = Repo.srcSSHFiles(migration, commons)
+
+	// Files In Deployment or StatefulSet
+	case "object":
+	case "pod":
+		srcOut, srcErr = Repo.srcK8SFiles(migration, commons)
+	}
+
+	if srcErr != nil {
+		return nil, err
 	}
 
 	// Restore the backup
 	switch migration.DestType {
+	// MySQL/MariaDB Database
 	case "db":
-		Repo.destDB(migration, commons)
-	case "ssh":
+		destOut, destErr = Repo.destDB(migration, commons)
 
+	case "pg":
+	case "bnkr":
+		destOut, destErr = Repo.destPG(migration, commons)
+
+	case "mongo":
+		destOut, destErr = Repo.destMongo(migration, commons)
+
+	// Files In SSH
+	case "ssh":
+		destOut, destErr = Repo.destSSHFiles(migration, commons)
+
+	// Files In Deployment or StatefulSet
+	case "object":
+	case "pod":
+		destOut, destErr = Repo.destK8SFiles(migration, commons)
+
+	// S3
+	case "s3":
+		if err := Repo.UploadToS3(migration.DestS3AccessKey, migration.DestS3SecretKey, migration.DestBucket, migration.DestRegion, commons.S3FullPath, commons.MigrationPath); err != nil {
+			destOut, destErr = "", err
+		}
 	}
+
+	return nil
 }
 
 func (m *Repository) MigrateNow(w http.ResponseWriter, r *http.Request) {

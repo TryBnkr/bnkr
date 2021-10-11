@@ -54,9 +54,9 @@
                     <option value="object" {{with $res.SrcType}}{{if eq $res.SrcType "object" }}selected{{end}}{{end}}>Files In Deployment or StatefulSet</option>
                     <option value="ssh" {{with $res.SrcType}}{{if eq $res.SrcType "ssh" }}selected{{end}}{{end}}>Files In SSH</option>
                     <option value="pod" {{with $res.SrcType}}{{if eq $res.SrcType "pod" }}selected{{end}}{{end}}>Files In Pod</option>
-                    <!-- <option value="mongo" {{with $res.SrcType}}{{if eq $res.SrcType "mongo" }}selected{{end}}{{end}}>MongoDB</option> -->
-                    <!-- <option value="pg" {{with $res.SrcType}}{{if eq $res.SrcType "pg" }}selected{{end}}{{end}}>PostgreSQL</option> -->
-                    <!-- <option value="bnkr" {{with $res.SrcType}}{{if eq $res.SrcType "bnkr" }}selected{{end}}{{end}}>Bnkr DB</option> -->
+                    <option value="mongo" {{with $res.SrcType}}{{if eq $res.SrcType "mongo" }}selected{{end}}{{end}}>MongoDB</option>
+                    <option value="pg" {{with $res.SrcType}}{{if eq $res.SrcType "pg" }}selected{{end}}{{end}}>PostgreSQL</option>
+                    <option value="bnkr" {{with $res.SrcType}}{{if eq $res.SrcType "bnkr" }}selected{{end}}{{end}}>Bnkr DB</option>
                 </select>
                 {{with .Form.Errors.Get "src_type"}}
                 <div class="invalid-feedback">
@@ -64,14 +64,14 @@
                 </div>
                 {{end}}
             </div>
-            <div class="mb-3" x-show="src_type=='db'">
+            <div class="mb-3" x-show="src_type=='db' || src_type=='mongo' || src_type=='pg' || src_type=='bnkr'">
                 <label for="exampleInputSrcAccess1" class="form-label">Access</label>
                 <select x-model="src_access" id="migration-src_access" name="src_access" class="form-select {{if .Form.Errors.Get "src_access"}} is-invalid {{else if
                     .Form.Has "src_access" }} is-valid {{end}}">
                     <option value="direct" {{with $res.SrcAccess}}{{if eq $res.SrcAccess "direct" }}selected{{end}}{{end}}>Direct</option>
                     <option value="ssh" {{with $res.SrcAccess}}{{if eq $res.SrcAccess "ssh" }}selected{{end}}{{end}}>Behind SSH</option>
                     <option value="k8s" {{with $res.SrcAccess}}{{if eq $res.SrcAccess "k8s" }}selected{{end}}{{end}}>Behind K8S</option>
-                    <option value="s3" {{with $res.SrcAccess}}{{if eq $res.SrcAccess "s3" }}selected{{end}}{{end}}>Behind S3</option>
+                    <option value="s3" {{with $res.SrcAccess}}{{if eq $res.SrcAccess "s3" }}selected{{end}}{{end}}>Download from S3</option>
                 </select>
                 {{with .Form.Errors.Get "src_access"}}
                 <div class="invalid-feedback">
@@ -237,7 +237,7 @@
                 <div id="src_containerHelp" class="form-text">The src_container that we are going to migration the files inside it.
                 </div>
             </div>
-            <div class="mb-3" x-show="src_type=='object' || src_type=='pod'">
+            <div class="mb-3" x-show="src_type=='object' || src_type=='pod' || src_type=='ssh'">
                 <label for="exampleInputSrcFilesPath1" class="form-label">Files Path</label>
                 <input name="src_files_path" class="form-control {{if .Form.Errors.Get "src_files_path"}} is-invalid {{else if
                     .Form.Has "src_files_path" }} is-valid {{end}}" value="{{$res.SrcFilesPath}}" id="exampleInputSrcFilesPath1"
@@ -319,9 +319,10 @@
                     <option value="object" {{with $res.DestType}}{{if eq $res.DestType "object" }}selected{{end}}{{end}}>Files In Deployment or StatefulSet</option>
                     <option value="ssh" {{with $res.SrcType}}{{if eq $res.SrcType "ssh" }}selected{{end}}{{end}}>Files In SSH</option>
                     <option value="pod" {{with $res.DestType}}{{if eq $res.DestType "pod" }}selected{{end}}{{end}}>Files In Pod</option>
-                    <!-- <option value="mongo" {{with $res.DestType}}{{if eq $res.DestType "mongo" }}selected{{end}}{{end}}>MongoDB</option> -->
-                    <!-- <option value="pg" {{with $res.DestType}}{{if eq $res.DestType "pg" }}selected{{end}}{{end}}>PostgreSQL</option> -->
-                    <!-- <option value="bnkr" {{with $res.DestType}}{{if eq $res.DestType "bnkr" }}selected{{end}}{{end}}>Bnkr DB</option> -->
+                    <option value="s3" {{with $res.DestType}}{{if eq $res.DestType "s3" }}selected{{end}}{{end}}>S3</option>
+                    <option value="mongo" {{with $res.DestType}}{{if eq $res.DestType "mongo" }}selected{{end}}{{end}}>MongoDB</option>
+                    <option value="pg" {{with $res.DestType}}{{if eq $res.DestType "pg" }}selected{{end}}{{end}}>PostgreSQL</option>
+                    <option value="bnkr" {{with $res.DestType}}{{if eq $res.DestType "bnkr" }}selected{{end}}{{end}}>Bnkr DB</option>
                 </select>
                 {{with .Form.Errors.Get "dest_type"}}
                 <div class="invalid-feedback">
@@ -329,14 +330,14 @@
                 </div>
                 {{end}}
             </div>
-            <div class="mb-3" x-show="dest_type=='db'">
+            <div class="mb-3" x-show="dest_type=='db' || dest_type=='mongo' || dest_type=='pg' || dest_type=='bnkr'">
                 <label for="exampleInputDestAccess1" class="form-label">Access</label>
                 <select x-model="dest_access" id="migration-dest_access" name="dest_access" class="form-select {{if .Form.Errors.Get "dest_access"}} is-invalid {{else if
                     .Form.Has "dest_access" }} is-valid {{end}}">
                     <option value="direct" {{with $res.DestAccess}}{{if eq $res.DestAccess "direct" }}selected{{end}}{{end}}>Direct</option>
                     <option value="ssh" {{with $res.DestAccess}}{{if eq $res.DestAccess "ssh" }}selected{{end}}{{end}}>Behind SSH</option>
                     <option value="k8s" {{with $res.DestAccess}}{{if eq $res.DestAccess "k8s" }}selected{{end}}{{end}}>Behind K8S</option>
-                    <option value="s3" {{with $res.DestAccess}}{{if eq $res.DestAccess "s3" }}selected{{end}}{{end}}>Behind S3</option>
+                    <option value="s3" {{with $res.DestAccess}}{{if eq $res.DestAccess "s3" }}selected{{end}}{{end}}>Upload to S3</option>
                 </select>
                 {{with .Form.Errors.Get "dest_access"}}
                 <div class="invalid-feedback">

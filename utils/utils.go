@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os/exec"
 	"regexp"
@@ -561,6 +562,26 @@ func GetRequiredMigTypeFields(theType string, itfor string) []string {
 	}
 
 	return result
+}
+
+func CreateKubeconfigFile(path string, kubeconfig string) (string, error) {
+	kubeconfigPath := path + "/" + "kubeconfig.yml"
+	err := ioutil.WriteFile(kubeconfigPath, []byte(kubeconfig), 0600)
+	if err != nil {
+		return "", err
+	}
+
+	return kubeconfigPath, nil
+}
+
+func CreateSSHKeyFile(path string, key string) (string, error) {
+	sshKeyPath := path + "/" + "id_rsa"
+	err := ioutil.WriteFile(sshKeyPath, []byte(key), 0600)
+	if err != nil {
+		return "", err
+	}
+
+	return sshKeyPath, nil
 }
 
 func CmdExecutor(cmd *exec.Cmd) (string, error) {
