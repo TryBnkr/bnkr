@@ -3,6 +3,7 @@ package services
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -75,6 +76,8 @@ func (m *Repository) PostNewMigration(w http.ResponseWriter, r *http.Request) {
 	DestRegion := r.Form.Get("dest_region")
 	SrcType := r.Form.Get("src_type")
 	DestType := r.Form.Get("dest_type")
+	SrcAccess := r.Form.Get("src_access")
+	DestAccess := r.Form.Get("dest_access")
 	SrcBucket := r.Form.Get("src_bucket")
 	DestBucket := r.Form.Get("dest_bucket")
 	SrcContainer := r.Form.Get("src_container")
@@ -112,6 +115,8 @@ func (m *Repository) PostNewMigration(w http.ResponseWriter, r *http.Request) {
 	Emails := r.Form.Get("emails")
 	DestStorageDirectory := r.Form.Get("dest_storage_directory")
 	SrcS3File := r.Form.Get("src_s3_file")
+	SrcKubefile := r.Form.Get("src_kubeconfig")
+	DestKubefile := r.Form.Get("dest_kubeconfig")
 
 	values := &dal.Migration{
 		Name:                 migrationName,
@@ -157,12 +162,18 @@ func (m *Repository) PostNewMigration(w http.ResponseWriter, r *http.Request) {
 		DestSshPort:          DestSshPort,
 		DestSshUser:          DestSshUser,
 		DestSshKey:           DestSshKey,
+		DestAccess:           DestAccess,
+		SrcAccess:            SrcAccess,
+		SrcKubeconfig:        SrcKubefile,
+		DestKubeconfig:       DestKubefile,
 	}
 
-	args := []string{"migrationName", "timezone", "src_type", "dest_type", "dest_bucket", "src_bucket", "src_s3_access_key", "dest_s3_access_key", "dest_s3_secret_key", "src_s3_secret_key", "dest_region", "src_region"}
+	args := []string{"migrationName", "timezone", "src_type", "dest_type", "src_access", "dest_access"}
 
 	args = append(args, utils.GetRequiredMigTypeFields(SrcType, "src")...)
 	args = append(args, utils.GetRequiredMigTypeFields(DestType, "dest")...)
+
+	args = append(args, utils.GetRequiredMigAccessFields(values)...)
 
 	form.Required(args...)
 
@@ -231,7 +242,8 @@ type MigrationCommon struct {
 	Msg           types.MailData
 	FailedStatus  string
 	SuccessStatus string
-	StartedAt     time.Time
+	RunningStatus string
+	StartedAt     sql.NullTime
 }
 
 func (m *Repository) PrepareMigration(b *dal.Migration, migrationName string, s3FullPath string) MigrationCommon {
@@ -286,7 +298,11 @@ func (m *Repository) PrepareMigration(b *dal.Migration, migrationName string, s3
 		Msg:           msg,
 		FailedStatus:  "fail",
 		SuccessStatus: "success",
-		StartedAt:     time.Now(),
+		RunningStatus: "running",
+		StartedAt: sql.NullTime{
+			Time:  time.Now(),
+			Valid: true,
+		},
 	}
 }
 
@@ -298,7 +314,7 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 	// Is the DB in K8S or SSH or we have direct access to it
 	case "ssh":
 		// Create the SSH key file
-		sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.SrcSshKey)
+		sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.SrcSshKey, "id_rsa")
 		if err != nil {
 			m.App.ErrorLog.Println(err)
 			return "", err
@@ -309,8 +325,10 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		cmd := exec.Command("ssh", args...)
 
 		output, err := utils.CmdExecutor(cmd)
+		o += `
+` + output
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Move the dump DB to Bnkr
@@ -319,16 +337,26 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		cmd2.Dir = c.TmpPath
 
 		output2, err := utils.CmdExecutor(cmd2)
+		o += `
+` + output2
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
-		o = output + `
-` + output2
+		// Cleanup the server
+		args = []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.SrcSshUser + "@" + g.SrcSshHost, "cd /; rm", c.MigrationName}
+		cmd = exec.Command("ssh", args...)
+
+		output3, err := utils.CmdExecutor(cmd)
+		o += `
+` + output3
+		if err != nil {
+			return o, err
+		}
 
 	case "k8s":
 		// Create Kubeconfig file
-		kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.SrcKubeconfig)
+		kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.SrcKubeconfig, "kubeconfig.yml")
 		if err != nil {
 			return "", err
 		}
@@ -339,8 +367,10 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		cmd := exec.Command("kubectl", args...)
 
 		output, err := utils.CmdExecutor(cmd)
+		o += `
+` + output
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Wait for the pod to be ready
@@ -348,8 +378,10 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		cmd = exec.Command("kubectl", args...)
 
 		output2, err := utils.CmdExecutor(cmd)
+		o += `
+` + output2
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Dump the DB in the pod
@@ -357,17 +389,22 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		cmd = exec.Command("kubectl", args...)
 
 		output3, err := utils.CmdExecutor(cmd)
+		o += `
+` + output3
 		if err != nil {
-			return "", err
+			return o, err
 		}
+
 		// Move the DB to Bnkr
 		args = []string{"cp", "--kubeconfig", kubeconfigPath, helperPodName + ":/" + c.MigrationName, c.MigrationName}
 		cmd = exec.Command("kubectl", args...)
 		cmd.Dir = c.TmpPath
 
 		output4, err := utils.CmdExecutor(cmd)
+		o += `
+` + output4
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Delete the helper pod
@@ -375,19 +412,12 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		cmd = exec.Command("kubectl", args...)
 
 		output5, err := utils.CmdExecutor(cmd)
+		o += `
+` + output5
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
-		o = output + `
-
-` + output2 + `
-
-` + output3 + `
-
-` + output4 + `
-
-` + output5
 	case "direct":
 		// open the out file for writing
 		outfile, err := os.Create(c.MigrationPath)
@@ -435,13 +465,13 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 
 		o = "Database dump completed successfully!"
 
-	case "s3":
-		// Download the file from S3
-		if err := Repo.DownloadFromS3(g.SrcS3AccessKey, g.SrcS3SecretKey, g.SrcBucket, g.SrcRegion, g.SrcS3File, c.MigrationPath); err != nil {
-			return "", err
-		}
+		// case "s3":
+		// 	// Download the file from S3
+		// 	if err := Repo.DownloadFromS3(g.SrcS3AccessKey, g.SrcS3SecretKey, g.SrcBucket, g.SrcRegion, g.SrcS3File, c.MigrationPath); err != nil {
+		// 		return "", err
+		// 	}
 
-		o = "Database file download completed successfully!"
+		// 	o = "Database file download completed successfully!"
 	}
 
 	return o, nil
@@ -460,7 +490,7 @@ func (m *Repository) srcPG(g *dal.Migration, c MigrationCommon) (string, error) 
 	// Is the DB in K8S or SSH or we have direct access to it
 	case "ssh":
 		// Create the SSH key file
-		sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.SrcSshKey)
+		sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.SrcSshKey, "id_rsa")
 		if err != nil {
 			m.App.ErrorLog.Println(err)
 			return "", err
@@ -471,8 +501,10 @@ func (m *Repository) srcPG(g *dal.Migration, c MigrationCommon) (string, error) 
 		cmd := exec.Command("ssh", args...)
 
 		output, err := utils.CmdExecutor(cmd)
+		o += `
+` + output
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Move the dump DB to Bnkr
@@ -481,16 +513,26 @@ func (m *Repository) srcPG(g *dal.Migration, c MigrationCommon) (string, error) 
 		cmd2.Dir = c.TmpPath
 
 		output2, err := utils.CmdExecutor(cmd2)
+		o += `
+` + output2
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
-		o = output + `
-` + output2
+		// Cleanup the server
+		args = []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.SrcSshUser + "@" + g.SrcSshHost, "cd /; rm", c.MigrationName}
+		cmd = exec.Command("ssh", args...)
+
+		output3, err := utils.CmdExecutor(cmd)
+		o += `
+` + output3
+		if err != nil {
+			return o, err
+		}
 
 	case "k8s":
 		// Create Kubeconfig file
-		kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.SrcKubeconfig)
+		kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.SrcKubeconfig, "kubeconfig.yml")
 		if err != nil {
 			return "", err
 		}
@@ -501,8 +543,10 @@ func (m *Repository) srcPG(g *dal.Migration, c MigrationCommon) (string, error) 
 		cmd := exec.Command("kubectl", args...)
 
 		output, err := utils.CmdExecutor(cmd)
+		o += `
+` + output
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Wait for the pod to be ready
@@ -510,8 +554,10 @@ func (m *Repository) srcPG(g *dal.Migration, c MigrationCommon) (string, error) 
 		cmd = exec.Command("kubectl", args...)
 
 		output2, err := utils.CmdExecutor(cmd)
+		o += `
+` + output2
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Dump the DB in the pod
@@ -519,8 +565,10 @@ func (m *Repository) srcPG(g *dal.Migration, c MigrationCommon) (string, error) 
 		cmd = exec.Command("kubectl", args...)
 
 		output3, err := utils.CmdExecutor(cmd)
+		o += `
+` + output3
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Move the DB to Bnkr
@@ -529,8 +577,10 @@ func (m *Repository) srcPG(g *dal.Migration, c MigrationCommon) (string, error) 
 		cmd.Dir = c.TmpPath
 
 		output4, err := utils.CmdExecutor(cmd)
+		o += `
+` + output4
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Delete the helper pod
@@ -538,19 +588,12 @@ func (m *Repository) srcPG(g *dal.Migration, c MigrationCommon) (string, error) 
 		cmd = exec.Command("kubectl", args...)
 
 		output5, err := utils.CmdExecutor(cmd)
+		o += `
+` + output5
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
-		o = output + `
-
-` + output2 + `
-
-` + output3 + `
-
-` + output4 + `
-
-` + output5
 	case "direct":
 		// open the out file for writing
 		outfile, err := os.Create(c.MigrationPath)
@@ -598,13 +641,13 @@ func (m *Repository) srcPG(g *dal.Migration, c MigrationCommon) (string, error) 
 
 		o = "Database dump completed successfully!"
 
-	case "s3":
-		// Download the file from S3
-		if err := Repo.DownloadFromS3(g.SrcS3AccessKey, g.SrcS3SecretKey, g.SrcBucket, g.SrcRegion, g.SrcS3File, c.MigrationPath); err != nil {
-			return "", err
-		}
+		// case "s3":
+		// 	// Download the file from S3
+		// 	if err := Repo.DownloadFromS3(g.SrcS3AccessKey, g.SrcS3SecretKey, g.SrcBucket, g.SrcRegion, g.SrcS3File, c.MigrationPath); err != nil {
+		// 		return "", err
+		// 	}
 
-		o = "Database file download completed successfully!"
+		// 	o = "Database file download completed successfully!"
 	}
 
 	return o, nil
@@ -619,7 +662,7 @@ func (m *Repository) srcMongo(g *dal.Migration, c MigrationCommon) (string, erro
 	// Is the DB in K8S or SSH or we have direct access to it
 	case "ssh":
 		// Create the SSH key file
-		sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.SrcSshKey)
+		sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.SrcSshKey, "id_rsa")
 		if err != nil {
 			m.App.ErrorLog.Println(err)
 			return "", err
@@ -630,8 +673,10 @@ func (m *Repository) srcMongo(g *dal.Migration, c MigrationCommon) (string, erro
 		cmd := exec.Command("ssh", args...)
 
 		output, err := utils.CmdExecutor(cmd)
+		o += `
+` + output
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Move the dump DB to Bnkr
@@ -640,16 +685,26 @@ func (m *Repository) srcMongo(g *dal.Migration, c MigrationCommon) (string, erro
 		cmd2.Dir = c.TmpPath
 
 		output2, err := utils.CmdExecutor(cmd2)
+		o += `
+` + output2
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
-		o = output + `
-` + output2
+		// Cleanup the server
+		args = []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.SrcSshUser + "@" + g.SrcSshHost, "cd /; rm", c.MigrationName}
+		cmd = exec.Command("ssh", args...)
+
+		output3, err := utils.CmdExecutor(cmd)
+		o += `
+` + output3
+		if err != nil {
+			return o, err
+		}
 
 	case "k8s":
 		// Create Kubeconfig file
-		kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.SrcKubeconfig)
+		kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.SrcKubeconfig, "kubeconfig.yml")
 		if err != nil {
 			return "", err
 		}
@@ -660,8 +715,10 @@ func (m *Repository) srcMongo(g *dal.Migration, c MigrationCommon) (string, erro
 		cmd := exec.Command("kubectl", args...)
 
 		output, err := utils.CmdExecutor(cmd)
+		o += `
+` + output
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Wait for the pod to be ready
@@ -669,8 +726,10 @@ func (m *Repository) srcMongo(g *dal.Migration, c MigrationCommon) (string, erro
 		cmd = exec.Command("kubectl", args...)
 
 		output2, err := utils.CmdExecutor(cmd)
+		o += `
+` + output2
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Dump the DB in the pod
@@ -678,8 +737,10 @@ func (m *Repository) srcMongo(g *dal.Migration, c MigrationCommon) (string, erro
 		cmd = exec.Command("kubectl", args...)
 
 		output3, err := utils.CmdExecutor(cmd)
+		o += `
+` + output3
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Move the DB to Bnkr
@@ -688,8 +749,10 @@ func (m *Repository) srcMongo(g *dal.Migration, c MigrationCommon) (string, erro
 		cmd.Dir = c.TmpPath
 
 		output4, err := utils.CmdExecutor(cmd)
+		o += `
+` + output4
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Delete the helper pod
@@ -697,38 +760,30 @@ func (m *Repository) srcMongo(g *dal.Migration, c MigrationCommon) (string, erro
 		cmd = exec.Command("kubectl", args...)
 
 		output5, err := utils.CmdExecutor(cmd)
-		if err != nil {
-			return "", err
-		}
-
-		o = output + `
-
-` + output2 + `
-
-` + output3 + `
-
-` + output4 + `
-
+		o += `
 ` + output5
+		if err != nil {
+			return o, err
+		}
 	case "direct":
 		// Dump the database
 		args := []string{"--uri=" + g.SrcURI, "--gzip", "--archive=" + c.MigrationPath}
 		mongodump := exec.Command("mongodump", args...)
 
 		output6, err := utils.CmdExecutor(mongodump)
+		o += `
+` + output6
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
-		o = output6
+		// case "s3":
+		// 	// Download the file from S3
+		// 	if err := Repo.DownloadFromS3(g.SrcS3AccessKey, g.SrcS3SecretKey, g.SrcBucket, g.SrcRegion, g.SrcS3File, c.MigrationPath); err != nil {
+		// 		return "", err
+		// 	}
 
-	case "s3":
-		// Download the file from S3
-		if err := Repo.DownloadFromS3(g.SrcS3AccessKey, g.SrcS3SecretKey, g.SrcBucket, g.SrcRegion, g.SrcS3File, c.MigrationPath); err != nil {
-			return "", err
-		}
-
-		o = "Database file download completed successfully!"
+		// 	o = "Database file download completed successfully!"
 	}
 
 	return o, nil
@@ -737,7 +792,7 @@ func (m *Repository) srcMongo(g *dal.Migration, c MigrationCommon) (string, erro
 func (m *Repository) srcK8SFiles(g *dal.Migration, c MigrationCommon) (string, error) {
 	var o string
 
-	kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.SrcKubeconfig)
+	kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.SrcKubeconfig, "kubeconfig.yml")
 	if err != nil {
 		m.App.ErrorLog.Println(err)
 		return "", err
@@ -762,8 +817,10 @@ func (m *Repository) srcK8SFiles(g *dal.Migration, c MigrationCommon) (string, e
 	cmd := exec.Command("kubectl", args...)
 
 	output, err := utils.CmdExecutor(cmd)
+	o += `
+` + output
 	if err != nil {
-		return "", err
+		return o, err
 	}
 
 	// Move the tarball to Bnkr
@@ -772,8 +829,10 @@ func (m *Repository) srcK8SFiles(g *dal.Migration, c MigrationCommon) (string, e
 	cmd.Dir = c.TmpPath
 
 	output2, err := utils.CmdExecutor(cmd)
+	o += `
+` + output2
 	if err != nil {
-		return "", err
+		return o, err
 	}
 
 	// Cleanup, remove the tarball file from the deployment
@@ -782,13 +841,11 @@ func (m *Repository) srcK8SFiles(g *dal.Migration, c MigrationCommon) (string, e
 	cmd.Dir = c.TmpPath
 
 	output3, err := utils.CmdExecutor(cmd)
-	if err != nil {
-		return "", err
-	}
-
-	o = output + `
-` + output2 + `
+	o += `
 ` + output3
+	if err != nil {
+		return o, err
+	}
 
 	return o, nil
 }
@@ -796,7 +853,7 @@ func (m *Repository) srcK8SFiles(g *dal.Migration, c MigrationCommon) (string, e
 func (m *Repository) srcSSHFiles(g *dal.Migration, c MigrationCommon) (string, error) {
 	var o string
 
-	sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.SrcSshKey)
+	sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.SrcSshKey, "id_rsa")
 	if err != nil {
 		m.App.ErrorLog.Println(err)
 		return "", err
@@ -807,8 +864,10 @@ func (m *Repository) srcSSHFiles(g *dal.Migration, c MigrationCommon) (string, e
 	cmd := exec.Command("ssh", args...)
 
 	output, err := utils.CmdExecutor(cmd)
+	o += `
+` + output
 	if err != nil {
-		return "", err
+		return o, err
 	}
 
 	// Move the tarball DB to Bnkr
@@ -817,12 +876,22 @@ func (m *Repository) srcSSHFiles(g *dal.Migration, c MigrationCommon) (string, e
 	cmd2.Dir = c.TmpPath
 
 	output2, err := utils.CmdExecutor(cmd2)
+	o += `
+` + output2
 	if err != nil {
-		return "", err
+		return o, err
 	}
 
-	o = output + `
-` + output2
+	// Cleanup the server
+	args = []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.SrcSshUser + "@" + g.SrcSshHost, "cd /; rm", c.MigrationName}
+	cmd = exec.Command("ssh", args...)
+
+	output3, err := utils.CmdExecutor(cmd)
+	o += `
+` + output3
+	if err != nil {
+		return o, err
+	}
 
 	return o, nil
 }
@@ -830,7 +899,7 @@ func (m *Repository) srcSSHFiles(g *dal.Migration, c MigrationCommon) (string, e
 func (m *Repository) destK8SFiles(g *dal.Migration, c MigrationCommon) (string, error) {
 	var o string
 
-	kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.DestKubeconfig)
+	kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.DestKubeconfig, "dest-kubeconfig.yml")
 	if err != nil {
 		m.App.ErrorLog.Println(err)
 		return "", err
@@ -856,8 +925,10 @@ func (m *Repository) destK8SFiles(g *dal.Migration, c MigrationCommon) (string, 
 	cmd.Dir = c.TmpPath
 
 	output, err := utils.CmdExecutor(cmd)
+	o += `
+` + output
 	if err != nil {
-		return "", err
+		return o, err
 	}
 
 	// Extract the tarball
@@ -865,8 +936,10 @@ func (m *Repository) destK8SFiles(g *dal.Migration, c MigrationCommon) (string, 
 	cmd = exec.Command("kubectl", args...)
 
 	output2, err := utils.CmdExecutor(cmd)
+	o += `
+` + output2
 	if err != nil {
-		return "", err
+		return o, err
 	}
 
 	// Cleanup, remove the tarball file from the pod
@@ -874,13 +947,11 @@ func (m *Repository) destK8SFiles(g *dal.Migration, c MigrationCommon) (string, 
 	cmd = exec.Command("kubectl", args...)
 
 	output3, err := utils.CmdExecutor(cmd)
-	if err != nil {
-		return "", err
-	}
-
-	o = output + `
-` + output2 + `
+	o += `
 ` + output3
+	if err != nil {
+		return o, err
+	}
 
 	return o, nil
 }
@@ -889,7 +960,7 @@ func (m *Repository) destSSHFiles(g *dal.Migration, c MigrationCommon) (string, 
 	var o string
 
 	// Create the SSH key file
-	sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.DestSshKey)
+	sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.DestSshKey, "dest_id_rsa")
 	if err != nil {
 		m.App.ErrorLog.Println(err)
 		return "", err
@@ -901,8 +972,10 @@ func (m *Repository) destSSHFiles(g *dal.Migration, c MigrationCommon) (string, 
 	cmd2.Dir = c.TmpPath
 
 	output, err := utils.CmdExecutor(cmd2)
+	o += `
+` + output
 	if err != nil {
-		return "", err
+		return o, err
 	}
 
 	// Restore the files on the server
@@ -910,8 +983,10 @@ func (m *Repository) destSSHFiles(g *dal.Migration, c MigrationCommon) (string, 
 	cmd := exec.Command("ssh", args...)
 
 	output2, err := utils.CmdExecutor(cmd)
+	o += `
+` + output2
 	if err != nil {
-		return "", err
+		return o, err
 	}
 
 	// Cleanup, remove the tarball file from the server
@@ -919,13 +994,11 @@ func (m *Repository) destSSHFiles(g *dal.Migration, c MigrationCommon) (string, 
 	cmd3 := exec.Command("ssh", args3...)
 
 	output3, err := utils.CmdExecutor(cmd3)
-	if err != nil {
-		return "", err
-	}
-
-	o = output + `
-` + output2 + `
+	o += `
 ` + output3
+	if err != nil {
+		return o, err
+	}
 
 	return o, nil
 }
@@ -936,7 +1009,7 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 	switch g.DestAccess {
 	case "ssh":
 		// Create the SSH key file
-		sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.DestSshKey)
+		sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.DestSshKey, "dest_id_rsa")
 		if err != nil {
 			m.App.ErrorLog.Println(err)
 			return "", err
@@ -948,8 +1021,10 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 		cmd2.Dir = c.TmpPath
 
 		output, err := utils.CmdExecutor(cmd2)
+		o += `
+` + output
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Restore the DB dump on the server
@@ -957,16 +1032,26 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 		cmd := exec.Command("ssh", args...)
 
 		output2, err := utils.CmdExecutor(cmd)
+		o += `
+` + output2
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
-		o = output + `
-` + output2
+		// Cleanup the server
+		args = []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.DestSshUser + "@" + g.DestSshHost, "cd /; rm", c.MigrationName}
+		cmd = exec.Command("ssh", args...)
+
+		output3, err := utils.CmdExecutor(cmd)
+		o += `
+` + output3
+		if err != nil {
+			return o, err
+		}
 
 	case "k8s":
 		// Create Kubeconfig file
-		kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.DestKubeconfig)
+		kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.DestKubeconfig, "dest-kubeconfig.yml")
 		if err != nil {
 			return "", err
 		}
@@ -978,8 +1063,10 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 		cmd := exec.Command("kubectl", args...)
 
 		output, err := utils.CmdExecutor(cmd)
+		o += `
+` + output
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Wait for the pod to be ready
@@ -987,8 +1074,10 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 		cmd = exec.Command("kubectl", args...)
 
 		output2, err := utils.CmdExecutor(cmd)
+		o += `
+` + output2
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Move the DB dump to pod
@@ -997,8 +1086,10 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 		cmd.Dir = c.TmpPath
 
 		output3, err := utils.CmdExecutor(cmd)
+		o += `
+` + output3
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Restore the DB on the pod
@@ -1006,8 +1097,10 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 		cmd = exec.Command("kubectl", args...)
 
 		output4, err := utils.CmdExecutor(cmd)
+		o += `
+` + output4
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Delete the helper pod
@@ -1015,19 +1108,12 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 		cmd = exec.Command("kubectl", args...)
 
 		output5, err := utils.CmdExecutor(cmd)
+		o += `
+` + output5
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
-		o = output + `
-
-` + output2 + `
-
-` + output3 + `
-
-` + output4 + `
-
-` + output5
 	case "direct":
 		file, err := os.Open(c.MigrationPath)
 		if err != nil {
@@ -1071,12 +1157,12 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 
 		o = "Database restore completed successfully!"
 
-	case "s3":
-		if err := Repo.UploadToS3(g.DestS3AccessKey, g.DestS3SecretKey, g.DestBucket, g.DestRegion, c.S3FullPath, c.MigrationPath); err != nil {
-			return "", err
-		}
+		// case "s3":
+		// 	if err := Repo.UploadToS3(g.DestS3AccessKey, g.DestS3SecretKey, g.DestBucket, g.DestRegion, c.S3FullPath, c.MigrationPath); err != nil {
+		// 		return "", err
+		// 	}
 
-		o = "Database upload completed successfully!"
+		// 	o = "Database upload completed successfully!"
 	}
 
 	return o, nil
@@ -1093,7 +1179,7 @@ func (m *Repository) destPG(g *dal.Migration, c MigrationCommon) (string, error)
 	switch g.DestAccess {
 	case "ssh":
 		// Create the SSH key file
-		sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.DestSshKey)
+		sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.DestSshKey, "dest_id_rsa")
 		if err != nil {
 			m.App.ErrorLog.Println(err)
 			return "", err
@@ -1105,8 +1191,10 @@ func (m *Repository) destPG(g *dal.Migration, c MigrationCommon) (string, error)
 		cmd2.Dir = c.TmpPath
 
 		output, err := utils.CmdExecutor(cmd2)
+		o += `
+` + output
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Restore the DB dump on the server
@@ -1114,16 +1202,26 @@ func (m *Repository) destPG(g *dal.Migration, c MigrationCommon) (string, error)
 		cmd := exec.Command("ssh", args...)
 
 		output2, err := utils.CmdExecutor(cmd)
+		o += `
+` + output2
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
-		o = output + `
-` + output2
+		// Cleanup the server
+		args = []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.DestSshUser + "@" + g.DestSshHost, "cd /; rm", c.MigrationName}
+		cmd = exec.Command("ssh", args...)
+
+		output3, err := utils.CmdExecutor(cmd)
+		o += `
+` + output3
+		if err != nil {
+			return o, err
+		}
 
 	case "k8s":
 		// Create Kubeconfig file
-		kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.DestKubeconfig)
+		kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.DestKubeconfig, "dest-kubeconfig.yml")
 		if err != nil {
 			return "", err
 		}
@@ -1134,8 +1232,10 @@ func (m *Repository) destPG(g *dal.Migration, c MigrationCommon) (string, error)
 		cmd := exec.Command("kubectl", args...)
 
 		output, err := utils.CmdExecutor(cmd)
+		o += `
+` + output
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Wait for the pod to be ready
@@ -1143,8 +1243,10 @@ func (m *Repository) destPG(g *dal.Migration, c MigrationCommon) (string, error)
 		cmd = exec.Command("kubectl", args...)
 
 		output2, err := utils.CmdExecutor(cmd)
+		o += `
+` + output2
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Move the DB dump to pod
@@ -1153,8 +1255,10 @@ func (m *Repository) destPG(g *dal.Migration, c MigrationCommon) (string, error)
 		cmd.Dir = c.TmpPath
 
 		output3, err := utils.CmdExecutor(cmd)
+		o += `
+` + output3
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Restore the DB on the pod
@@ -1162,8 +1266,10 @@ func (m *Repository) destPG(g *dal.Migration, c MigrationCommon) (string, error)
 		cmd = exec.Command("kubectl", args...)
 
 		output4, err := utils.CmdExecutor(cmd)
+		o += `
+` + output4
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Delete the helper pod
@@ -1171,19 +1277,12 @@ func (m *Repository) destPG(g *dal.Migration, c MigrationCommon) (string, error)
 		cmd = exec.Command("kubectl", args...)
 
 		output5, err := utils.CmdExecutor(cmd)
+		o += `
+` + output5
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
-		o = output + `
-
-` + output2 + `
-
-` + output3 + `
-
-` + output4 + `
-
-` + output5
 	case "direct":
 		file, err := os.Open(c.MigrationPath)
 		if err != nil {
@@ -1228,12 +1327,12 @@ func (m *Repository) destPG(g *dal.Migration, c MigrationCommon) (string, error)
 
 		o = "Database restore completed successfully!"
 
-	case "s3":
-		if err := Repo.UploadToS3(g.DestS3AccessKey, g.DestS3SecretKey, g.DestBucket, g.DestRegion, c.S3FullPath, c.MigrationPath); err != nil {
-			return "", err
-		}
+		// case "s3":
+		// 	if err := Repo.UploadToS3(g.DestS3AccessKey, g.DestS3SecretKey, g.DestBucket, g.DestRegion, c.S3FullPath, c.MigrationPath); err != nil {
+		// 		return "", err
+		// 	}
 
-		o = "Database upload completed successfully!"
+		// 	o = "Database upload completed successfully!"
 	}
 
 	return o, nil
@@ -1245,7 +1344,7 @@ func (m *Repository) destMongo(g *dal.Migration, c MigrationCommon) (string, err
 	switch g.DestAccess {
 	case "ssh":
 		// Create the SSH key file
-		sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.DestSshKey)
+		sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.DestSshKey, "dest_id_rsa")
 		if err != nil {
 			m.App.ErrorLog.Println(err)
 			return "", err
@@ -1257,8 +1356,10 @@ func (m *Repository) destMongo(g *dal.Migration, c MigrationCommon) (string, err
 		cmd2.Dir = c.TmpPath
 
 		output, err := utils.CmdExecutor(cmd2)
+		o += `
+` + output
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Restore the DB dump on the server
@@ -1266,16 +1367,26 @@ func (m *Repository) destMongo(g *dal.Migration, c MigrationCommon) (string, err
 		cmd := exec.Command("ssh", args...)
 
 		output2, err := utils.CmdExecutor(cmd)
+		o += `
+` + output2
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
-		o = output + `
-` + output2
+		// Cleanup the server
+		args = []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.DestSshUser + "@" + g.DestSshHost, "cd /; rm", c.MigrationName}
+		cmd = exec.Command("ssh", args...)
+
+		output3, err := utils.CmdExecutor(cmd)
+		o += `
+` + output3
+		if err != nil {
+			return o, err
+		}
 
 	case "k8s":
 		// Create Kubeconfig file
-		kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.DestKubeconfig)
+		kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.DestKubeconfig, "dest-kubeconfig.yml")
 		if err != nil {
 			return "", err
 		}
@@ -1286,8 +1397,10 @@ func (m *Repository) destMongo(g *dal.Migration, c MigrationCommon) (string, err
 		cmd := exec.Command("kubectl", args...)
 
 		output, err := utils.CmdExecutor(cmd)
+		o += `
+` + output
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Wait for the pod to be ready
@@ -1295,8 +1408,10 @@ func (m *Repository) destMongo(g *dal.Migration, c MigrationCommon) (string, err
 		cmd = exec.Command("kubectl", args...)
 
 		output2, err := utils.CmdExecutor(cmd)
+		o += `
+` + output2
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Move the DB dump to pod
@@ -1305,8 +1420,10 @@ func (m *Repository) destMongo(g *dal.Migration, c MigrationCommon) (string, err
 		cmd.Dir = c.TmpPath
 
 		output3, err := utils.CmdExecutor(cmd)
+		o += `
+` + output3
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Restore the DB on the pod
@@ -1314,8 +1431,10 @@ func (m *Repository) destMongo(g *dal.Migration, c MigrationCommon) (string, err
 		cmd = exec.Command("kubectl", args...)
 
 		output4, err := utils.CmdExecutor(cmd)
+		o += `
+` + output4
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		// Delete the helper pod
@@ -1323,62 +1442,34 @@ func (m *Repository) destMongo(g *dal.Migration, c MigrationCommon) (string, err
 		cmd = exec.Command("kubectl", args...)
 
 		output5, err := utils.CmdExecutor(cmd)
+		o += `
+` + output5
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
-		o = output + `
-
-` + output2 + `
-
-` + output3 + `
-
-` + output4 + `
-
-` + output5
 	case "direct":
 		args := []string{"--uri=" + g.DestURI, "--gzip", "--drop", "--archive=" + c.MigrationPath}
 		mongodump := exec.Command("mongorestore", args...)
 
 		output6, err := utils.CmdExecutor(mongodump)
+		o = output6
 		if err != nil {
 			return "", err
 		}
 
-		o = output6
+		// case "s3":
+		// 	if err := Repo.UploadToS3(g.DestS3AccessKey, g.DestS3SecretKey, g.DestBucket, g.DestRegion, c.S3FullPath, c.MigrationPath); err != nil {
+		// 		return "", err
+		// 	}
 
-	case "s3":
-		if err := Repo.UploadToS3(g.DestS3AccessKey, g.DestS3SecretKey, g.DestBucket, g.DestRegion, c.S3FullPath, c.MigrationPath); err != nil {
-			return "", err
-		}
-
-		o = "Database upload completed successfully!"
+		// 	o = "Database upload completed successfully!"
 	}
 
 	return o, nil
 }
 
-func (m *Repository) UpdateMigration(commons *MigrationCommon, status string, b *dal.Migration) (*dal.Migration, error) {
-	o := &dal.Migration{
-		CreatedAt: commons.StartedAt,
-		UpdatedAt: commons.StartedAt,
-		File:      commons.S3FullPath,
-		CompletedAt: sql.NullTime{
-			Time:  time.Now(),
-			Valid: true,
-		},
-		Status: status,
-		Migration: b.ID,
-	}
-
-	if _, err := dal.UpdateMigration(o); err != nil {
-		return nil, err
-	}
-
-	return o, nil
-}
-
-func (m *Repository) TerminateMigration(message string, status string, commons *MigrationCommon, b *dal.Migration, sendMail bool) (*dal.Migration, error) {
+func (m *Repository) TerminateMigration(message string, status string, commons *MigrationCommon, b *dal.Migration, sendMail bool, output string) error {
 	if status != "success" {
 		commons.Msg.Content = message
 		m.App.MailChan <- commons.Msg
@@ -1390,19 +1481,14 @@ func (m *Repository) TerminateMigration(message string, status string, commons *
 		}
 	}
 
-	os.RemoveAll(commons.TmpPath)
-	return Repo.UpdateMigration(commons, status, b)
+	dal.UpdateMigrationHelper(b.ID, status, false, true, false, output)
+	return os.RemoveAll(commons.TmpPath)
 }
 
-func (m *Repository) migrate(id int) error {
-	migration := &dal.Migration{}
-
-	if err := dal.FindMigrationById(migration, id); err != nil {
-		m.App.ErrorLog.Println(err)
-		return err
-	}
-
+func (m *Repository) migrate(id int, migration *dal.Migration) error {
 	commons := Repo.PrepareMigration(migration, "", "")
+
+	dal.UpdateMigrationHelper(migration.ID, commons.RunningStatus, true, false, false, "")
 
 	var srcErr, destErr error
 	var srcOut, destOut string
@@ -1428,10 +1514,16 @@ func (m *Repository) migrate(id int) error {
 	case "object":
 	case "pod":
 		srcOut, srcErr = Repo.srcK8SFiles(migration, commons)
+
+	case "s3":
+		if err := Repo.DownloadFromS3(migration.SrcS3AccessKey, migration.SrcS3SecretKey, migration.SrcBucket, migration.SrcRegion, commons.S3FullPath, commons.MigrationPath); err != nil {
+			srcOut, srcErr = "", err
+		}
 	}
 
 	if srcErr != nil {
-		return nil, err
+		Repo.TerminateMigration("Error while processing the source!", commons.FailedStatus, &commons, migration, true, srcErr.Error())
+		return srcErr
 	}
 
 	// Restore the backup
@@ -1463,16 +1555,36 @@ func (m *Repository) migrate(id int) error {
 		}
 	}
 
+	if destErr != nil {
+		Repo.TerminateMigration("Error while processing the destination!", commons.FailedStatus, &commons, migration, true, destErr.Error())
+		return srcErr
+	}
+
+	Repo.TerminateMigration("", commons.SuccessStatus, &commons, migration, true, srcOut+`
+`+destOut)
+
 	return nil
 }
 
 func (m *Repository) MigrateNow(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
 
-	go m.migrate(id)
+	migration := &dal.Migration{}
+
+	if err := dal.FindMigrationById(migration, id); err != nil {
+		m.App.ErrorLog.Println(err)
+		utils.ErrorJSON(w, err)
+		return
+	}
+
+	if migration.Status.String == "running" {
+		utils.ErrorJSON(w, errors.New("already running"))
+	}
+
+	go m.migrate(id, migration)
 
 	out, _ := json.Marshal(&types.MsgResponse{
-		Message: "Migration process queued!",
+		Message: "Migration run!",
 	})
 
 	w.Header().Set("Content-Type", "application/json")

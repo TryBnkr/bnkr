@@ -3,6 +3,7 @@ package utils
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -546,26 +547,63 @@ func GetOptionValue(o string) string {
 	return option.Value
 }
 
-func GetRequiredMigTypeFields(theType string, itfor string) []string {
+func GetRequiredMigAccessFields(values *dal.Migration) []string {
 	result := []string{}
 
-	if theType == "db" {
-		result = []string{itfor + "_db_name", itfor + "_db_user", itfor + "_db_password", itfor + "_db_host", itfor + "_db_port"}
-	} else if theType == "object" {
-		result = []string{itfor + "_pod_label", itfor + "_files_path", itfor + "_container"}
-	} else if theType == "mongo" || theType == "pg" {
-		result = []string{itfor + "_uri"}
-	} else if theType == "pod" {
-		result = []string{itfor + "_files_path", itfor + "_container", itfor + "_pod_name"}
-	} else if theType == "ssh" {
-		result = []string{itfor + "_ssh_host", itfor + "_ssh_port", itfor + "_ssh_user", itfor + "_ssh_key"}
+	if values.SrcType == "db" || values.SrcType == "pg" || values.SrcType == "mongo" || values.SrcType == "bnkr" {
+		if values.SrcAccess == "k8s" {
+			result = []string{"src_kubeconfig"}
+		}
+	
+		if values.SrcAccess == "ssh" {
+			result = []string{"src_ssh_host", "src_ssh_port", "src_ssh_user", "src_ssh_key"}
+		}
+	}
+
+	if values.DestType == "db" || values.DestType == "pg" || values.DestType == "mongo" || values.DestType == "bnkr" {
+		if values.DestAccess == "k8s" {
+			result = append(result, "dest_kubeconfig")
+		}
+
+		if values.DestAccess == "ssh" {
+			result = append(result, "dest_ssh_host", "dest_ssh_port", "dest_ssh_user", "dest_ssh_key")
+		}
 	}
 
 	return result
 }
 
-func CreateKubeconfigFile(path string, kubeconfig string) (string, error) {
-	kubeconfigPath := path + "/" + "kubeconfig.yml"
+func GetRequiredMigTypeFields(theType string, itfor string) []string {
+	result := []string{}
+
+	switch theType {
+	case "db":
+		result = []string{itfor + "_db_name", itfor + "_db_user", itfor + "_db_password", itfor + "_db_host", itfor + "_db_port"}
+	case "object":
+		result = []string{itfor + "_pod_label", itfor + "_files_path", itfor + "_container"}
+	case "mongo":
+	case "pg":
+		result = []string{itfor + "_uri"}
+	case "pod":
+		result = []string{itfor + "_files_path", itfor + "_container", itfor + "_pod_name"}
+	case "ssh":
+		result = []string{itfor + "_ssh_host", itfor + "_ssh_port", itfor + "_ssh_user", itfor + "_ssh_key"}
+	case "s3":
+		result = []string{itfor + "_bucket", itfor + "_s3_access_key", itfor + "_s3_secret_key", itfor + "_region"}
+	}
+
+	if itfor == "src" {
+		result = append(result, itfor + "_s3_file")
+	}
+
+	return result
+}
+
+func CreateKubeconfigFile(path string, kubeconfig string, kubeconfigName string) (string, error) {
+	if kubeconfigName == "" {
+		kubeconfigName = "kubeconfig.yml"
+	}
+	kubeconfigPath := path + "/" + kubeconfigName
 	err := ioutil.WriteFile(kubeconfigPath, []byte(kubeconfig), 0600)
 	if err != nil {
 		return "", err
@@ -574,8 +612,12 @@ func CreateKubeconfigFile(path string, kubeconfig string) (string, error) {
 	return kubeconfigPath, nil
 }
 
-func CreateSSHKeyFile(path string, key string) (string, error) {
-	sshKeyPath := path + "/" + "id_rsa"
+func CreateSSHKeyFile(path string, key string, keyName string) (string, error) {
+	if keyName == "" {
+		keyName = "id_rsa"
+	}
+
+	sshKeyPath := path + "/" + keyName
 	err := ioutil.WriteFile(sshKeyPath, []byte(key), 0600)
 	if err != nil {
 		return "", err
@@ -618,4 +660,33 @@ func CmdExecutor(cmd *exec.Cmd) (string, error) {
 	}
 
 	return co.String(), err
+}
+
+func ErrorJSON(w http.ResponseWriter, err error) {
+	type jsonError struct {
+		Message string `json:"message"`
+	}
+
+	theError := jsonError{
+		Message: err.Error(),
+	}
+
+	WriteJSON(w, http.StatusBadRequest, theError, "error")
+}
+
+func WriteJSON(w http.ResponseWriter, status int, data interface{}, wrap string) error {
+	wrapper := make(map[string]interface{})
+
+	wrapper[wrap] = data
+
+	js, err := json.Marshal(wrapper)
+	if err != nil {
+		return err
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	w.Write(js)
+
+	return nil
 }

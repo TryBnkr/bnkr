@@ -41,7 +41,7 @@
         </div>
         {{end}}
     </div>
-    <div class="card mb-3">
+    <div class="card mt-4">
         <div class="card-header">
           Source
         </div>
@@ -54,6 +54,7 @@
                     <option value="object" {{with $res.SrcType}}{{if eq $res.SrcType "object" }}selected{{end}}{{end}}>Files In Deployment or StatefulSet</option>
                     <option value="ssh" {{with $res.SrcType}}{{if eq $res.SrcType "ssh" }}selected{{end}}{{end}}>Files In SSH</option>
                     <option value="pod" {{with $res.SrcType}}{{if eq $res.SrcType "pod" }}selected{{end}}{{end}}>Files In Pod</option>
+                    <option value="s3" {{with $res.SrcType}}{{if eq $res.SrcType "s3" }}selected{{end}}{{end}}>S3</option>
                     <option value="mongo" {{with $res.SrcType}}{{if eq $res.SrcType "mongo" }}selected{{end}}{{end}}>MongoDB</option>
                     <option value="pg" {{with $res.SrcType}}{{if eq $res.SrcType "pg" }}selected{{end}}{{end}}>PostgreSQL</option>
                     <option value="bnkr" {{with $res.SrcType}}{{if eq $res.SrcType "bnkr" }}selected{{end}}{{end}}>Bnkr DB</option>
@@ -71,7 +72,6 @@
                     <option value="direct" {{with $res.SrcAccess}}{{if eq $res.SrcAccess "direct" }}selected{{end}}{{end}}>Direct</option>
                     <option value="ssh" {{with $res.SrcAccess}}{{if eq $res.SrcAccess "ssh" }}selected{{end}}{{end}}>Behind SSH</option>
                     <option value="k8s" {{with $res.SrcAccess}}{{if eq $res.SrcAccess "k8s" }}selected{{end}}{{end}}>Behind K8S</option>
-                    <option value="s3" {{with $res.SrcAccess}}{{if eq $res.SrcAccess "s3" }}selected{{end}}{{end}}>Download from S3</option>
                 </select>
                 {{with .Form.Errors.Get "src_access"}}
                 <div class="invalid-feedback">
@@ -90,7 +90,7 @@
                 </div>
                 {{end}}
             </div>
-            <div x-show="src_type=='ssh' || src_access=='ssh'" class="mb-3">
+            <div x-show="(src_access=='ssh' && (src_type=='db' || src_type=='mongo' || src_type=='pg' || src_type=='bnkr')) || src_type=='ssh'" class="mb-3">
                 <label for="exampleInputSrcSshHost1" class="form-label">SSH Host</label>
                 <input name="src_ssh_host" class="form-control {{if .Form.Errors.Get "src_ssh_host"}} is-invalid {{else if
                     .Form.Has "src_ssh_host" }} is-valid {{end}}" value="{{$res.SrcSshHost}}" id="exampleInputSrcSshHost1"
@@ -101,7 +101,7 @@
                 </div>
                 {{end}}
             </div>
-            <div x-show="src_type=='ssh' || src_access=='ssh'" class="mb-3">
+            <div x-show="(src_access=='ssh' && (src_type=='db' || src_type=='mongo' || src_type=='pg' || src_type=='bnkr')) || src_type=='ssh'" class="mb-3">
                 <label for="exampleInputSrcSshPort1" class="form-label">SSH Port</label>
                 <input name="src_ssh_port" class="form-control {{if .Form.Errors.Get "src_ssh_port"}} is-invalid {{else if
                     .Form.Has "src_ssh_port" }} is-valid {{end}}" value="{{$res.SrcSshPort}}" id="exampleInputSrcSshPort1"
@@ -112,7 +112,7 @@
                 </div>
                 {{end}}
             </div>
-            <div x-show="src_type=='ssh' || src_access=='ssh'" class="mb-3">
+            <div x-show="(src_access=='ssh' && (src_type=='db' || src_type=='mongo' || src_type=='pg' || src_type=='bnkr')) || src_type=='ssh'" class="mb-3">
                 <label for="exampleInputSrcSshUser1" class="form-label">SSH User</label>
                 <input name="src_ssh_user" class="form-control {{if .Form.Errors.Get "src_ssh_user"}} is-invalid {{else if
                     .Form.Has "src_ssh_user" }} is-valid {{end}}" value="{{$res.SrcSshUser}}" id="exampleInputSrcSshUser1"
@@ -123,7 +123,7 @@
                 </div>
                 {{end}}
             </div>
-            <div x-show="src_type=='ssh' || src_access=='ssh'" class="mb-3">
+            <div x-show="(src_access=='ssh' && (src_type=='db' || src_type=='mongo' || src_type=='pg' || src_type=='bnkr')) || src_type=='ssh'" class="mb-3">
                 <label for="exampleInputSrcSshKey1" class="form-label">SSH Key</label>
                 <textarea name="src_ssh_key" class="form-control {{if .Form.Errors.Get "src_ssh_key"}} is-invalid {{else if
                     .Form.Has "src_ssh_key" }} is-valid {{end}}" id="exampleInputSrcSshKey1" aria-describedby="src_ssh_keyHelp" rows="3">{{$res.SrcSshKey}}</textarea>
@@ -133,7 +133,7 @@
                 </div>
                 {{end}}
             </div>
-            <div x-show="src_access=='k8s' || src_type=='pod' || src_type=='object'" class="mb-3">
+            <div x-show="(src_access=='k8s' && (src_type=='db' || src_type=='mongo' || src_type=='pg' || src_type=='bnkr')) || src_type=='pod' || src_type=='object'" class="mb-3">
                 <label for="exampleInputSrcKubeconfig1" class="form-label">Kubeconfig</label>
                 <textarea name="src_kubeconfig" class="form-control {{if .Form.Errors.Get "src_kubeconfig"}} is-invalid {{else if
                     .Form.Has "src_kubeconfig" }} is-valid {{end}}" id="exampleInputSrcKubeconfig1" aria-describedby="src_kubeconfigHelp" rows="3">{{$res.SrcKubeconfig}}</textarea>
@@ -249,7 +249,7 @@
                 {{end}}
                 <div id="src_files_pathHelp" class="form-text">The folder path inside the container.</div>
             </div>
-            <div class="mb-3">
+            <div x-show="src_type=='s3'" class="mb-3">
                 <label for="exampleInputSrcS3AccessKey1" class="form-label">S3 Access Key</label>
                 <input name="src_s3_access_key" class="form-control {{if .Form.Errors.Get "src_s3_access_key"}} is-invalid {{else if
                     .Form.Has "src_s3_access_key" }} is-valid {{end}}" value="{{$res.SrcS3AccessKey}}" id="exampleInputSrcS3AccessKey1"
@@ -260,7 +260,7 @@
                 </div>
                 {{end}}
             </div>
-            <div class="mb-3">
+            <div x-show="src_type=='s3'" class="mb-3">
                 <label for="exampleInputSrcS3SecretKey1" class="form-label">S3 Secret Key</label>
                 <input name="src_s3_secret_key" class="form-control {{if .Form.Errors.Get "src_s3_secret_key"}} is-invalid {{else if
                     .Form.Has "src_s3_secret_key" }} is-valid {{end}}" value="{{$res.SrcS3SecretKey}}" id="exampleInputSrcS3SecretKey1"
@@ -271,7 +271,7 @@
                 </div>
                 {{end}}
             </div>
-            <div class="mb-3">
+            <div x-show="src_type=='s3'" class="mb-3">
                 <label for="exampleInputSrcRegion1" class="form-label">Region</label>
                 <input name="src_region" class="form-control {{if .Form.Errors.Get "src_region"}} is-invalid {{else if
                     .Form.Has "src_region" }} is-valid {{end}}" value="{{$res.SrcRegion}}" id="exampleInputSrcRegion1"
@@ -282,7 +282,7 @@
                 </div>
                 {{end}}
             </div>
-            <div class="mb-3">
+            <div x-show="src_type=='s3'" class="mb-3">
                 <label for="exampleInputSrcBucket1" class="form-label">Bucket</label>
                 <input name="src_bucket" class="form-control {{if .Form.Errors.Get "src_bucket"}} is-invalid {{else if
                     .Form.Has "src_bucket" }} is-valid {{end}}" value="{{$res.SrcBucket}}" id="exampleInputSrcBucket1"
@@ -293,7 +293,7 @@
                 </div>
                 {{end}}
             </div>
-            <div class="mb-3">
+            <div x-show="src_type=='s3'" class="mb-3">
                 <label for="exampleInputSrcS3File1" class="form-label">File on S3</label>
                 <input placeholder="2021/weekly/db.sql.gz" name="src_s3_file" class="form-control {{if .Form.Errors.Get "src_s3_file"}} is-invalid {{else
                     if .Form.Has "src_s3_file" }} is-valid {{end}}" value="{{$res.SrcS3File}}"
@@ -306,7 +306,7 @@
             </div>
         </div>
     </div>
-    <div class="card mb-3">
+    <div class="card mt-4">
         <div class="card-header">
           Destination
         </div>
@@ -315,14 +315,14 @@
                 <label for="exampleInputDestType1" class="form-label">Type</label>
                 <select x-model="dest_type" id="migration-dest_type" name="dest_type" class="form-select {{if .Form.Errors.Get "dest_type"}} is-invalid {{else if
                     .Form.Has "dest_type" }} is-valid {{end}}">
-                    <option value="db" {{with $res.DestType}}{{if eq $res.DestType "db" }}selected{{end}}{{end}}>MySQL/MariaDB Database</option>
-                    <option value="object" {{with $res.DestType}}{{if eq $res.DestType "object" }}selected{{end}}{{end}}>Files In Deployment or StatefulSet</option>
-                    <option value="ssh" {{with $res.SrcType}}{{if eq $res.SrcType "ssh" }}selected{{end}}{{end}}>Files In SSH</option>
-                    <option value="pod" {{with $res.DestType}}{{if eq $res.DestType "pod" }}selected{{end}}{{end}}>Files In Pod</option>
+                    <option x-show="src_type=='db' || src_type=='s3'" value="db" {{with $res.DestType}}{{if eq $res.DestType "db" }}selected{{end}}{{end}}>MySQL/MariaDB Database</option>
+                    <option x-show="src_type=='pod' || src_type=='ssh' || src_type=='object' || src_type=='s3'" value="object" {{with $res.DestType}}{{if eq $res.DestType "object" }}selected{{end}}{{end}}>Files In Deployment or StatefulSet</option>
+                    <option x-show="src_type=='pod' || src_type=='ssh' || src_type=='object' || src_type=='s3'" value="ssh" {{with $res.SrcType}}{{if eq $res.SrcType "ssh" }}selected{{end}}{{end}}>Files In SSH</option>
+                    <option x-show="src_type=='pod' || src_type=='ssh' || src_type=='object' || src_type=='s3'" value="pod" {{with $res.DestType}}{{if eq $res.DestType "pod" }}selected{{end}}{{end}}>Files In Pod</option>
                     <option value="s3" {{with $res.DestType}}{{if eq $res.DestType "s3" }}selected{{end}}{{end}}>S3</option>
-                    <option value="mongo" {{with $res.DestType}}{{if eq $res.DestType "mongo" }}selected{{end}}{{end}}>MongoDB</option>
-                    <option value="pg" {{with $res.DestType}}{{if eq $res.DestType "pg" }}selected{{end}}{{end}}>PostgreSQL</option>
-                    <option value="bnkr" {{with $res.DestType}}{{if eq $res.DestType "bnkr" }}selected{{end}}{{end}}>Bnkr DB</option>
+                    <option x-show="src_type=='mongo' || src_type=='s3'" value="mongo" {{with $res.DestType}}{{if eq $res.DestType "mongo" }}selected{{end}}{{end}}>MongoDB</option>
+                    <option x-show="src_type=='pg' || src_type=='s3'" value="pg" {{with $res.DestType}}{{if eq $res.DestType "pg" }}selected{{end}}{{end}}>PostgreSQL</option>
+                    <option x-show="src_type=='pg' || src_type=='s3' || src_type=='bnkr'" value="bnkr" {{with $res.DestType}}{{if eq $res.DestType "bnkr" }}selected{{end}}{{end}}>Bnkr DB</option>
                 </select>
                 {{with .Form.Errors.Get "dest_type"}}
                 <div class="invalid-feedback">
@@ -337,7 +337,6 @@
                     <option value="direct" {{with $res.DestAccess}}{{if eq $res.DestAccess "direct" }}selected{{end}}{{end}}>Direct</option>
                     <option value="ssh" {{with $res.DestAccess}}{{if eq $res.DestAccess "ssh" }}selected{{end}}{{end}}>Behind SSH</option>
                     <option value="k8s" {{with $res.DestAccess}}{{if eq $res.DestAccess "k8s" }}selected{{end}}{{end}}>Behind K8S</option>
-                    <option value="s3" {{with $res.DestAccess}}{{if eq $res.DestAccess "s3" }}selected{{end}}{{end}}>Upload to S3</option>
                 </select>
                 {{with .Form.Errors.Get "dest_access"}}
                 <div class="invalid-feedback">
@@ -356,7 +355,7 @@
                 </div>
                 {{end}}
             </div>
-            <div x-show="dest_type=='ssh' || dest_access=='ssh'" class="mb-3">
+            <div x-show="(dest_access=='ssh' && (dest_type=='db' || dest_type=='mongo' || dest_type=='pg' || dest_type=='bnkr')) || dest_type=='ssh'" class="mb-3">
                 <label for="exampleInputDestSshHost1" class="form-label">SSH Host</label>
                 <input name="dest_ssh_host" class="form-control {{if .Form.Errors.Get "dest_ssh_host"}} is-invalid {{else if
                     .Form.Has "dest_ssh_host" }} is-valid {{end}}" value="{{$res.DestDbName}}" id="exampleInputDestSshHost1"
@@ -367,7 +366,7 @@
                 </div>
                 {{end}}
             </div>
-            <div x-show="dest_type=='ssh' || dest_access=='ssh'" class="mb-3">
+            <div x-show="(dest_access=='ssh' && (dest_type=='db' || dest_type=='mongo' || dest_type=='pg' || dest_type=='bnkr')) || dest_type=='ssh'" class="mb-3">
                 <label for="exampleInputDestSshPort1" class="form-label">SSH Port</label>
                 <input name="dest_ssh_port" class="form-control {{if .Form.Errors.Get "dest_ssh_port"}} is-invalid {{else if
                     .Form.Has "dest_ssh_port" }} is-valid {{end}}" value="{{$res.DestSshPort}}" id="exampleInputDestSshPort1"
@@ -378,7 +377,7 @@
                 </div>
                 {{end}}
             </div>
-            <div x-show="dest_type=='ssh' || dest_access=='ssh'" class="mb-3">
+            <div x-show="(dest_access=='ssh' && (dest_type=='db' || dest_type=='mongo' || dest_type=='pg' || dest_type=='bnkr')) || dest_type=='ssh'" class="mb-3">
                 <label for="exampleInputDestSshUser1" class="form-label">SSH User</label>
                 <input name="dest_ssh_user" class="form-control {{if .Form.Errors.Get "dest_ssh_user"}} is-invalid {{else if
                     .Form.Has "dest_ssh_user" }} is-valid {{end}}" value="{{$res.DestSshUser}}" id="exampleInputDestSshUser1"
@@ -389,7 +388,7 @@
                 </div>
                 {{end}}
             </div>
-            <div x-show="dest_type=='ssh' || dest_access=='ssh'" class="mb-3">
+            <div x-show="(dest_access=='ssh' && (dest_type=='db' || dest_type=='mongo' || dest_type=='pg' || dest_type=='bnkr')) || dest_type=='ssh'" class="mb-3">
                 <label for="exampleInputDestSshKey1" class="form-label">SSH Key</label>
                 <textarea name="dest_ssh_key" class="form-control {{if .Form.Errors.Get "dest_ssh_key"}} is-invalid {{else if
                     .Form.Has "dest_ssh_key" }} is-valid {{end}}" id="exampleInputDestSshKey1" aria-describedby="dest_ssh_keyHelp" rows="3">{{$res.DestSshKey}}</textarea>
@@ -399,7 +398,7 @@
                 </div>
                 {{end}}
             </div>
-            <div x-show="dest_access=='k8s' || dest_type=='pod' || dest_type=='object'" class="mb-3">
+            <div x-show="(dest_access=='k8s' && (dest_type=='db' || dest_type=='mongo' || dest_type=='pg' || dest_type=='bnkr')) || dest_type=='pod' || dest_type=='object'" class="mb-3">
                 <label for="exampleInputDestKubeconfig1" class="form-label">Kubeconfig</label>
                 <textarea name="dest_kubeconfig" class="form-control {{if .Form.Errors.Get "dest_kubeconfig"}} is-invalid {{else if
                     .Form.Has "dest_kubeconfig" }} is-valid {{end}}" id="exampleInputDestKubeconfig1" aria-describedby="dest_kubeconfigHelp" rows="3">{{$res.DestKubeconfig}}</textarea>
@@ -515,7 +514,7 @@
                 {{end}}
                 <div id="dest_files_pathHelp" class="form-text">The folder path inside the container.</div>
             </div>
-            <div class="mb-3">
+            <div x-show="dest_type=='s3'" class="mb-3">
                 <label for="exampleInputDestS3AccessKey1" class="form-label">S3 Access Key</label>
                 <input name="dest_s3_access_key" class="form-control {{if .Form.Errors.Get "dest_s3_access_key"}} is-invalid {{else if
                     .Form.Has "dest_s3_access_key" }} is-valid {{end}}" value="{{$res.DestS3AccessKey}}" id="exampleInputDestS3AccessKey1"
@@ -526,7 +525,7 @@
                 </div>
                 {{end}}
             </div>
-            <div class="mb-3">
+            <div x-show="dest_type=='s3'" class="mb-3">
                 <label for="exampleInputDestS3SecretKey1" class="form-label">S3 Secret Key</label>
                 <input name="dest_s3_secret_key" class="form-control {{if .Form.Errors.Get "dest_s3_secret_key"}} is-invalid {{else if
                     .Form.Has "dest_s3_secret_key" }} is-valid {{end}}" value="{{$res.DestS3SecretKey}}" id="exampleInputDestS3SecretKey1"
@@ -537,7 +536,7 @@
                 </div>
                 {{end}}
             </div>
-            <div class="mb-3">
+            <div x-show="dest_type=='s3'" class="mb-3">
                 <label for="exampleInputDestRegion1" class="form-label">Region</label>
                 <input name="dest_region" class="form-control {{if .Form.Errors.Get "dest_region"}} is-invalid {{else if
                     .Form.Has "dest_region" }} is-valid {{end}}" value="{{$res.DestRegion}}" id="exampleInputDestRegion1"
@@ -548,7 +547,7 @@
                 </div>
                 {{end}}
             </div>
-            <div class="mb-3">
+            <div x-show="dest_type=='s3'" class="mb-3">
                 <label for="exampleInputDestBucket1" class="form-label">Bucket</label>
                 <input name="dest_bucket" class="form-control {{if .Form.Errors.Get "dest_bucket"}} is-invalid {{else if
                     .Form.Has "dest_bucket" }} is-valid {{end}}" value="{{$res.DestBucket}}" id="exampleInputDestBucket1"
@@ -559,7 +558,7 @@
                 </div>
                 {{end}}
             </div>
-            <div class="mb-3">
+            <div x-show="dest_type=='s3'" class="mb-3">
                 <label for="exampleInputDestStorageDirectory1" class="form-label">Storage Directory (Optional)</label>
                 <input placeholder="2021/weekly" name="dest_storage_directory" class="form-control {{if .Form.Errors.Get "dest_storage_directory"}} is-invalid {{else
                     if .Form.Has "dest_storage_directory" }} is-valid {{end}}" value="{{$res.DestStorageDirectory}}"
@@ -572,7 +571,7 @@
             </div>
         </div>
     </div>
-    <button type="submit" class="btn btn-primary mb-3">{{with index .Data "id"}}Update{{else}}Submit{{end}}</button>
+    <button type="submit" class="btn btn-primary mt-4">{{with index .Data "id"}}Update{{else}}Submit{{end}}</button>
 </form>
 {{end}}
 
