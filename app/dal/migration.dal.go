@@ -156,3 +156,7 @@ func UpdateMigrationHelper(id int, status string, SetStartedAt bool, SetComplete
 		return
 	}
 }
+
+func DeleteMigration(migrationIden interface{}) (sql.Result, error) {
+	return database.DB.Exec("delete from migrations where id=$1", migrationIden)
+}

@@ -590,11 +590,11 @@ func GetRequiredMigTypeFields(theType string, itfor string) []string {
 		result = []string{itfor + "_ssh_host", itfor + "_ssh_port", itfor + "_ssh_user", itfor + "_ssh_key"}
 	case "s3":
 		result = []string{itfor + "_bucket", itfor + "_s3_access_key", itfor + "_s3_secret_key", itfor + "_region"}
+		if itfor == "src" {
+			result = append(result, itfor + "_s3_file")
+		}
 	}
 
-	if itfor == "src" {
-		result = append(result, itfor + "_s3_file")
-	}
 
 	return result
 }

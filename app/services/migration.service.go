@@ -207,9 +207,6 @@ func (m *Repository) PostNewMigration(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		m.App.Session.Put(r.Context(), "flash", "Migration updated")
-		// Update cron
-		// TODO check error of UpdateOrInsertCron
-		m.UpdateOrInsertCron(id, "update")
 	} else {
 		values.UpdatedAt = sql.NullTime{
 			Time:  time.Now(),
@@ -225,12 +222,73 @@ func (m *Repository) PostNewMigration(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		m.App.Session.Put(r.Context(), "flash", "Migration created")
-		// Insert cron
-		// TODO check error of UpdateOrInsertCron
-		m.UpdateOrInsertCron(values.ID, "create")
 	}
 
 	http.Redirect(w, r, "/migrations", http.StatusSeeOther)
+}
+
+func (m *Repository) CloneMigration(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
+
+	migration := &dal.Migration{}
+
+	if err := dal.FindMigrationById(migration, id); err != nil {
+		utils.ServerError(w, err)
+		return
+	}
+
+	migration.Name = "Clone of " + migration.Name
+	migration.CreatedAt = sql.NullTime{
+		Time:  time.Now(),
+		Valid: true,
+	}
+	migration.UpdatedAt = sql.NullTime{
+		Time:  time.Now(),
+		Valid: true,
+	}
+	migration.User = utils.GetUser(w, r)
+
+	if _, err := dal.CreateMigration(migration); err != nil {
+		utils.ErrorJSON(w, err)
+		return
+	}
+
+	m.App.Session.Put(r.Context(), "flash", "Clone created!")
+
+	out, _ := json.Marshal(&types.MsgResponse{
+		Message: "Clone successfully created!",
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(out)
+}
+
+func (m *Repository) DeleteMigration(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
+
+	migration := &dal.Migration{}
+
+	if err := dal.FindMigrationById(migration, id); err != nil {
+		utils.ServerError(w, err)
+		return
+	}
+
+	if migration.Status.String == "running" {
+		utils.ErrorJSON(w, errors.New("cant delete a running migration"))
+		return
+	}
+
+	if _, err := dal.DeleteMigration(id); err != nil {
+		utils.ErrorJSON(w, errors.New("unable to delete migration"))
+		return
+	}
+
+	out, _ := json.Marshal(&types.MsgResponse{
+		Message: "Migration successfully deleted",
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(out)
 }
 
 type MigrationCommon struct {
@@ -1579,6 +1637,7 @@ func (m *Repository) MigrateNow(w http.ResponseWriter, r *http.Request) {
 
 	if migration.Status.String == "running" {
 		utils.ErrorJSON(w, errors.New("already running"))
+		return
 	}
 
 	go m.migrate(id, migration)
