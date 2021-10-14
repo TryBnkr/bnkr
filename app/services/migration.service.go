@@ -714,10 +714,7 @@ func (m *Repository) srcPG(g *dal.Migration, c MigrationCommon) (string, error) 
 func (m *Repository) srcMongo(g *dal.Migration, c MigrationCommon) (string, error) {
 	var o string
 
-	// Else if direct access is allowed then simply do the dump on Bnkr
-	// If the database inside SSH then run dump command on the server using the SSH details then move it to Bnkr
 	switch g.SrcAccess {
-	// Is the DB in K8S or SSH or we have direct access to it
 	case "ssh":
 		// Create the SSH key file
 		sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.SrcSshKey, "id_rsa")
