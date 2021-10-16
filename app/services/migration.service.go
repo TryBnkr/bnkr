@@ -401,7 +401,7 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		}
 
 		// Create the DB dump on the server
-		args := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.SrcSshUser + "@" + g.SrcSshHost, "cd /; mysqldump -h " + g.SrcDbHost + " -u " + g.SrcDbUser + " --port=" + g.SrcDbPort + " -p" + g.SrcDbPassword + " " + g.SrcDbName, "|", "gzip", ">", c.MigrationName}
+		args := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.SrcSshUser + "@" + g.SrcSshHost, "cd /; mysqldump -h " + g.SrcDbHost + " -u " + g.SrcDbUser + " --port=" + g.SrcDbPort + " -p" + g.SrcDbPassword + " " + g.SrcDbName + " | gzip > " + c.MigrationName}
 		cmd := exec.Command("ssh", args...)
 
 		output, err := utils.CmdExecutor(cmd)
@@ -478,7 +478,7 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		fmt.Println("Dump the DB in the pod")
 
 		// Dump the DB in the pod
-		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; mysqldump -h " + g.SrcDbHost + " -u " + g.SrcDbUser + " --port=" + g.SrcDbPort + " -p" + g.SrcDbPassword + " " + g.SrcDbName, "|", "gzip", ">", c.MigrationName}
+		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; mysqldump -h " + g.SrcDbHost + " -u " + g.SrcDbUser + " --port=" + g.SrcDbPort + " -p" + g.SrcDbPassword + " " + g.SrcDbName + " | gzip > " + c.MigrationName}
 		cmd = exec.Command("kubectl", args...)
 
 		output3, err := utils.CmdExecutor(cmd)
@@ -602,7 +602,7 @@ func (m *Repository) srcPG(g *dal.Migration, c MigrationCommon) (string, error) 
 		}
 
 		// Create the DB dump on the server
-		args := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.SrcSshUser + "@" + g.SrcSshHost, "cd /; pg_dump --dbname=" + uri, "|", "gzip", ">", c.MigrationName}
+		args := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.SrcSshUser + "@" + g.SrcSshHost, "cd /; pg_dump --dbname=" + uri + " | gzip > " + c.MigrationName}
 		cmd := exec.Command("ssh", args...)
 
 		output, err := utils.CmdExecutor(cmd)
@@ -666,7 +666,7 @@ func (m *Repository) srcPG(g *dal.Migration, c MigrationCommon) (string, error) 
 		}
 
 		// Dump the DB in the pod
-		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; pg_dump --dbname=" + uri, "|", "gzip", ">", c.MigrationName}
+		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; pg_dump --dbname=" + uri + " | gzip > " + c.MigrationName}
 		cmd = exec.Command("kubectl", args...)
 
 		output3, err := utils.CmdExecutor(cmd)
@@ -1130,7 +1130,7 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 		}
 
 		// Restore the DB dump on the server
-		args := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.DestSshUser + "@" + g.DestSshHost, "cd /; gunzip", "<", c.MigrationName, "|", "mysql", "--max_allowed_packet=512M", "-h", g.DestDbHost, "-u", g.DestDbUser, "-p" + g.DestDbPassword, g.DestDbName}
+		args := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.DestSshUser + "@" + g.DestSshHost, "cd /; gunzip < " + c.MigrationName + " | mysql", "--max_allowed_packet=512M", "-h", g.DestDbHost, "-u", g.DestDbUser, "-p" + g.DestDbPassword, g.DestDbName}
 		cmd := exec.Command("ssh", args...)
 
 		output2, err := utils.CmdExecutor(cmd)
@@ -1195,7 +1195,7 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 		}
 
 		// Restore the DB on the pod
-		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; gunzip", "<", c.MigrationName, "|", "mysql", "--max_allowed_packet=512M", "-h", g.DestDbHost, "-u", g.DestDbUser, "-p" + g.DestDbPassword, g.DestDbName}
+		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; gunzip < " + c.MigrationName + " | mysql", "--max_allowed_packet=512M", "-h", g.DestDbHost, "-u", g.DestDbUser, "-p" + g.DestDbPassword, g.DestDbName}
 		cmd = exec.Command("kubectl", args...)
 
 		output4, err := utils.CmdExecutor(cmd)
@@ -1300,7 +1300,7 @@ func (m *Repository) destPG(g *dal.Migration, c MigrationCommon) (string, error)
 		}
 
 		// Restore the DB dump on the server
-		args := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.DestSshUser + "@" + g.DestSshHost, "cd /; gunzip", "<", c.MigrationName, "|", "psql", uri}
+		args := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.DestSshUser + "@" + g.DestSshHost, "cd /; gunzip < " + c.MigrationName + " | psql " + uri}
 		cmd := exec.Command("ssh", args...)
 
 		output2, err := utils.CmdExecutor(cmd)
@@ -1364,7 +1364,7 @@ func (m *Repository) destPG(g *dal.Migration, c MigrationCommon) (string, error)
 		}
 
 		// Restore the DB on the pod
-		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; gunzip", "<", c.MigrationName, "|", "psql", uri}
+		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; gunzip < " + c.MigrationName + " | psql " + uri}
 		cmd = exec.Command("kubectl", args...)
 
 		output4, err := utils.CmdExecutor(cmd)
