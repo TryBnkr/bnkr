@@ -441,6 +441,9 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 			return "", err
 		}
 
+		// DEBUG
+		fmt.Println("start the run", kubeconfigPath)
+
 		// Create MariaDB helper pod
 		helperPodName := "bnkr-" + guuid.New().String()
 		args := []string{"run", helperPodName, "--kubeconfig", kubeconfigPath, "--restart=Never", "--image", "mariadb:10.5.9-focal", "--command", "--", "sleep", "infinity"}
@@ -450,8 +453,13 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		o += `
 ` + output
 		if err != nil {
+			// DEBUG
+			fmt.Println("check the run", err, output)
 			return o, err
 		}
+
+		// DEBUG
+		fmt.Println("start the wait")
 
 		// Wait for the pod to be ready
 		args = []string{"wait", "--kubeconfig", kubeconfigPath, "--for=condition=ready", "pod", helperPodName}
@@ -461,8 +469,13 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		o += `
 ` + output2
 		if err != nil {
+			// DEBUG
+			fmt.Println("check the wait", err, output2)
 			return o, err
 		}
+
+		// DEBUG
+		fmt.Println("Dump the DB in the pod")
 
 		// Dump the DB in the pod
 		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; mysqldump -h " + g.SrcDbHost + " -u " + g.SrcDbUser + " --port=" + g.SrcDbPort + " -p" + g.SrcDbPassword + " " + g.SrcDbName, "|", "gzip", ">", c.MigrationName}
@@ -472,8 +485,13 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		o += `
 ` + output3
 		if err != nil {
+			// DEBUG
+			fmt.Println("check the dump", err, output3)
 			return o, err
 		}
+
+		// DEBUG
+		fmt.Println("start the cp")
 
 		// Move the DB to Bnkr
 		args = []string{"cp", "--kubeconfig", kubeconfigPath, helperPodName + ":/" + c.MigrationName, c.MigrationName}
@@ -484,8 +502,13 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		o += `
 ` + output4
 		if err != nil {
+			// DEBUG
+			fmt.Println("check the cp", err, output4)
 			return o, err
 		}
+
+		// DEBUG
+		fmt.Println("start the delete")
 
 		// Delete the helper pod
 		args = []string{"delete", "--kubeconfig", kubeconfigPath, "pod", helperPodName, "--ignore-not-found"}
@@ -495,6 +518,8 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		o += `
 ` + output5
 		if err != nil {
+			// DEBUG
+			fmt.Println("check the delete", err, output5)
 			return o, err
 		}
 
