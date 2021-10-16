@@ -458,6 +458,7 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		if err != nil {
 			// DEBUG
 			fmt.Println("helperPodName Error", err)
+			fmt.Println("helperPodName Output", output)
 			return o, err
 		}
 
