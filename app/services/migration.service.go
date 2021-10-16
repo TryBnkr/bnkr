@@ -37,6 +37,28 @@ func (m *Repository) GetMigrations(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (m *Repository) GetRunningMigrations(w http.ResponseWriter, r *http.Request) {
+	migrations := &[]dal.Migration{}
+	if err := dal.FindAllMigrations(migrations); err != nil {
+		utils.ServerError(w, err)
+		return
+	}
+
+	var migrationsIds []int
+	for _, j := range *migrations {
+		if j.Status.String == "running" {
+			migrationsIds = append(migrationsIds, j.ID)
+		}
+	}
+
+	out, _ := json.Marshal(&types.MsgResponse{
+		Data: migrationsIds,
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(out)
+}
+
 func (m *Repository) GetNewMigration(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
 	data := make(map[string]interface{})
