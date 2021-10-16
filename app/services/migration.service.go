@@ -387,8 +387,6 @@ func (m *Repository) PrepareMigration(b *dal.Migration, migrationName string, s3
 }
 
 func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) {
-	// DEBUG
-	fmt.Println("inside srcDB")
 	var o string
 	// Else if direct access is allowed then simply do the dump on Bnkr
 	// If the database inside SSH then run dump command on the server using the SSH details then move it to Bnkr
@@ -437,28 +435,21 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		}
 
 	case "k8s":
-		// DEBUG
-		fmt.Println("inside k8s")
 		// Create Kubeconfig file
 		kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.SrcKubeconfig, "kubeconfig.yml")
 		if err != nil {
-			// DEBUG
-			fmt.Println("kubeconfigPath Error", err)
 			return "", err
 		}
 
 		// Create MariaDB helper pod
 		helperPodName := "bnkr-" + guuid.New().String()
-		args := []string{"run", helperPodName, "--kubeconfig", kubeconfigPath, "--rm", "--restart=Never", "--image", "mariadb:10.5.9-focal", "--command", "--", "sleep", "infinity"}
+		args := []string{"run", helperPodName, "--kubeconfig", kubeconfigPath, "--restart=Never", "--image", "mariadb:10.5.9-focal", "--command", "--", "sleep", "infinity"}
 		cmd := exec.Command("kubectl", args...)
 
 		output, err := utils.CmdExecutor(cmd)
 		o += `
 ` + output
 		if err != nil {
-			// DEBUG
-			fmt.Println("helperPodName Error", err)
-			fmt.Println("helperPodName Output", output)
 			return o, err
 		}
 
@@ -470,8 +461,6 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		o += `
 ` + output2
 		if err != nil {
-			// DEBUG
-			fmt.Println("kubectl wait Error", err)
 			return o, err
 		}
 
@@ -630,7 +619,7 @@ func (m *Repository) srcPG(g *dal.Migration, c MigrationCommon) (string, error) 
 
 		// Create postgres helper pod
 		helperPodName := "bnkr-" + guuid.New().String()
-		args := []string{"run", helperPodName, "--kubeconfig", kubeconfigPath, "--rm", "--restart=Never", "--image", "postgres:13-alpine", "--command", "--", "sleep", "infinity"}
+		args := []string{"run", helperPodName, "--kubeconfig", kubeconfigPath, "--restart=Never", "--image", "postgres:13-alpine", "--command", "--", "sleep", "infinity"}
 		cmd := exec.Command("kubectl", args...)
 
 		output, err := utils.CmdExecutor(cmd)
@@ -799,7 +788,7 @@ func (m *Repository) srcMongo(g *dal.Migration, c MigrationCommon) (string, erro
 
 		// Create MongoDB helper pod
 		helperPodName := "bnkr-" + guuid.New().String()
-		args := []string{"run", helperPodName, "--kubeconfig", kubeconfigPath, "--rm", "--restart=Never", "--image", "mongo:5.0.3-focal", "--command", "--", "sleep", "infinity"}
+		args := []string{"run", helperPodName, "--kubeconfig", kubeconfigPath, "--restart=Never", "--image", "mongo:5.0.3-focal", "--command", "--", "sleep", "infinity"}
 		cmd := exec.Command("kubectl", args...)
 
 		output, err := utils.CmdExecutor(cmd)
@@ -1147,7 +1136,7 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 		// Create MariaDB helper pod
 		helperPodName := "bnkr-" + guuid.New().String()
 
-		args := []string{"run", helperPodName, "--kubeconfig", kubeconfigPath, "--rm", "--restart=Never", "--image", "mariadb:10.5.9-focal", "--command", "--", "sleep", "infinity"}
+		args := []string{"run", helperPodName, "--kubeconfig", kubeconfigPath, "--restart=Never", "--image", "mariadb:10.5.9-focal", "--command", "--", "sleep", "infinity"}
 		cmd := exec.Command("kubectl", args...)
 
 		output, err := utils.CmdExecutor(cmd)
@@ -1316,7 +1305,7 @@ func (m *Repository) destPG(g *dal.Migration, c MigrationCommon) (string, error)
 
 		// Create postgres helper pod
 		helperPodName := "bnkr-" + guuid.New().String()
-		args := []string{"run", helperPodName, "--kubeconfig", kubeconfigPath, "--rm", "--restart=Never", "--image", "postgres:13-alpine", "--command", "--", "sleep", "infinity"}
+		args := []string{"run", helperPodName, "--kubeconfig", kubeconfigPath, "--restart=Never", "--image", "postgres:13-alpine", "--command", "--", "sleep", "infinity"}
 		cmd := exec.Command("kubectl", args...)
 
 		output, err := utils.CmdExecutor(cmd)
@@ -1481,7 +1470,7 @@ func (m *Repository) destMongo(g *dal.Migration, c MigrationCommon) (string, err
 
 		// Create MongoDB helper pod
 		helperPodName := "bnkr-" + guuid.New().String()
-		args := []string{"run", helperPodName, "--kubeconfig", kubeconfigPath, "--rm", "--restart=Never", "--image", "mongo:5.0.3-focal", "--command", "--", "sleep", "infinity"}
+		args := []string{"run", helperPodName, "--kubeconfig", kubeconfigPath, "--restart=Never", "--image", "mongo:5.0.3-focal", "--command", "--", "sleep", "infinity"}
 		cmd := exec.Command("kubectl", args...)
 
 		output, err := utils.CmdExecutor(cmd)
@@ -1581,15 +1570,10 @@ func (m *Repository) migrate(id int, migration *dal.Migration) error {
 	var srcErr, destErr error
 	var srcOut, destOut string
 
-	// DEBUG
-	fmt.Println(1)
-
 	// Create the backup
 	switch migration.SrcType {
 	// MySQL/MariaDB Database
 	case "db":
-		// DEBUG
-		fmt.Println(3)
 		srcOut, srcErr = Repo.srcDB(migration, commons)
 
 	case "pg":
@@ -1615,9 +1599,8 @@ func (m *Repository) migrate(id int, migration *dal.Migration) error {
 	}
 
 	if srcErr != nil {
-		// DEBUG
-		fmt.Println("srcErr", srcErr)
-		Repo.TerminateMigration("Error while processing the source!", commons.FailedStatus, &commons, migration, true, srcErr.Error())
+		Repo.TerminateMigration("Error while processing the source!", commons.FailedStatus, &commons, migration, true, srcOut+`
+`+srcErr.Error())
 		return srcErr
 	}
 
@@ -1651,9 +1634,8 @@ func (m *Repository) migrate(id int, migration *dal.Migration) error {
 	}
 
 	if destErr != nil {
-		// DEBUG
-		fmt.Println("destErr", destErr.Error())
-		Repo.TerminateMigration("Error while processing the destination!", commons.FailedStatus, &commons, migration, true, destErr.Error())
+		Repo.TerminateMigration("Error while processing the destination!", commons.FailedStatus, &commons, migration, true, destOut+`
+`+destErr.Error())
 		return srcErr
 	}
 
