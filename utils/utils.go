@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"os/exec"
 	"regexp"
 	"runtime/debug"
@@ -15,6 +16,8 @@ import (
 	"github.com/MohammedAl-Mahdawi/bnkr/app/dal"
 	"github.com/MohammedAl-Mahdawi/bnkr/app/types"
 	"github.com/MohammedAl-Mahdawi/bnkr/config"
+	"github.com/pkg/sftp"
+	"golang.org/x/crypto/ssh"
 )
 
 var app *config.AppConfig
@@ -554,7 +557,7 @@ func GetRequiredMigAccessFields(values *dal.Migration) []string {
 		if values.SrcAccess == "k8s" {
 			result = []string{"src_kubeconfig"}
 		}
-	
+
 		if values.SrcAccess == "ssh" {
 			result = []string{"src_ssh_host", "src_ssh_port", "src_ssh_user", "src_ssh_key"}
 		}
@@ -591,10 +594,9 @@ func GetRequiredMigTypeFields(theType string, itfor string) []string {
 	case "s3":
 		result = []string{itfor + "_bucket", itfor + "_s3_access_key", itfor + "_s3_secret_key", itfor + "_region"}
 		if itfor == "src" {
-			result = append(result, itfor + "_s3_file")
+			result = append(result, itfor+"_s3_file")
 		}
 	}
-
 
 	return result
 }
@@ -689,4 +691,117 @@ func WriteJSON(w http.ResponseWriter, status int, data interface{}, wrap string)
 	w.Write(js)
 
 	return nil
+}
+
+func GetSshConn(user string, host string, key string) (*ssh.Client, error) {
+	signer, err := ssh.ParsePrivateKey([]byte(key))
+	if err != nil {
+		return nil, err
+	}
+
+	config := &ssh.ClientConfig{
+		User: user,
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	conn, err := ssh.Dial("tcp", host, config)
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
+}
+
+func RunSshCommand(conn *ssh.Client, cmd string) error {
+	sess, err := conn.NewSession()
+	if err != nil {
+		return err
+	}
+	defer sess.Close()
+	sessStdOut, err := sess.StdoutPipe()
+	if err != nil {
+		return err
+	}
+
+	// TODO store sessStdOut in variable and return it
+	go io.Copy(os.Stdout, sessStdOut)
+	sessStderr, err := sess.StderrPipe()
+	if err != nil {
+		return err
+	}
+	// TODO store sessStderr in variable and return it
+	go io.Copy(os.Stderr, sessStderr)
+	err = sess.Run(cmd)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func UploadFileOverSftp(conn *ssh.Client, sFile string, dFile string) (int64, error) {
+	client, err := sftp.NewClient(conn)
+	if err != nil {
+		return 0, err
+	}
+	defer client.Close()
+
+	// create destination file
+	dstFile, err := client.Create(dFile)
+	if err != nil {
+		return 0, err
+	}
+	defer dstFile.Close()
+
+	// open source file
+	srcFile, err := os.Open(sFile)
+	if err != nil {
+		return 0, err
+	}
+
+	// copy source file to destination file
+	bytes, err := io.Copy(dstFile, srcFile)
+	if err != nil {
+		return 0, err
+	}
+	
+	return bytes, nil
+}
+
+func DownloadFileOverSftp(conn *ssh.Client, sFile string, dFile string) (int64, error) {
+	client, err := sftp.NewClient(conn)
+	if err != nil {
+		return 0, err
+	}
+	defer client.Close()
+
+	// create destination file
+	dstFile, err := os.Create(dFile)
+	if err != nil {
+		return 0, err
+	}
+	defer dstFile.Close()
+
+	// open source file
+	srcFile, err := client.Open(sFile)
+	if err != nil {
+		return 0, err
+	}
+
+	// copy source file to destination file
+	bytes, err := io.Copy(dstFile, srcFile)
+	if err != nil {
+		return 0, err
+	}
+
+	// flush in-memory copy
+	err = dstFile.Sync()
+	if err != nil {
+		return bytes, err
+	}
+
+	return bytes, nil
 }

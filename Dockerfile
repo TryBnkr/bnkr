@@ -10,7 +10,7 @@ ARG TARGETPLATFORM
 
 RUN apt update
 
-RUN apt install curl wget openssh-client -y
+RUN apt install curl wget -y
 
 # Install kubectl binary
 RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/${TARGETPLATFORM}/kubectl"

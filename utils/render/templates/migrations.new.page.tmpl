@@ -124,7 +124,7 @@
                 {{end}}
             </div>
             <div x-show="(src_access=='ssh' && (src_type=='db' || src_type=='mongo' || src_type=='pg' || src_type=='bnkr')) || src_type=='ssh'" class="mb-3">
-                <label for="exampleInputSrcSshKey1" class="form-label">SSH Key</label>
+                <label for="exampleInputSrcSshKey1" class="form-label">SSH Private Key</label>
                 <textarea name="src_ssh_key" class="form-control {{if .Form.Errors.Get "src_ssh_key"}} is-invalid {{else if
                     .Form.Has "src_ssh_key" }} is-valid {{end}}" id="exampleInputSrcSshKey1" aria-describedby="src_ssh_keyHelp" rows="3">{{$res.SrcSshKey}}</textarea>
                 {{with .Form.Errors.Get "src_ssh_key"}}
@@ -389,7 +389,7 @@
                 {{end}}
             </div>
             <div x-show="(dest_access=='ssh' && (dest_type=='db' || dest_type=='mongo' || dest_type=='pg' || dest_type=='bnkr')) || dest_type=='ssh'" class="mb-3">
-                <label for="exampleInputDestSshKey1" class="form-label">SSH Key</label>
+                <label for="exampleInputDestSshKey1" class="form-label">SSH Private Key</label>
                 <textarea name="dest_ssh_key" class="form-control {{if .Form.Errors.Get "dest_ssh_key"}} is-invalid {{else if
                     .Form.Has "dest_ssh_key" }} is-valid {{end}}" id="exampleInputDestSshKey1" aria-describedby="dest_ssh_keyHelp" rows="3">{{$res.DestSshKey}}</textarea>
                 {{with .Form.Errors.Get "dest_ssh_key"}}
