@@ -198,6 +198,10 @@ spec:
               servicePort: 80
 ```
 
+## Troubleshooting
+
+In almost all the cases that we faced most problems came from incorrect permissions, please make sure the for example the DB user has the capabilities to dump and restore the DB, the SSH user has the capabilities to create/delete files, and so on.
+
 ## License
 
 Copyright (c) 2021 [Mohammed Al-Mahdawi](https://al-mahdawi.is/)

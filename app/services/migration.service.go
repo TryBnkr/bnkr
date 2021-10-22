@@ -587,7 +587,7 @@ func (m *Repository) srcPG(g *dal.Migration, c MigrationCommon) (string, error) 
 		defer conn.Close()
 
 		// Create the DB dump on the server
-		err = utils.RunSshCommand(conn, "pg_dump -Fc --dbname="+uri+" | gzip > /"+c.MigrationName)
+		err = utils.RunSshCommand(conn, "pg_dump -c --dbname="+uri+" | gzip > /"+c.MigrationName)
 		if err != nil {
 			return o, err
 		}
@@ -635,7 +635,7 @@ func (m *Repository) srcPG(g *dal.Migration, c MigrationCommon) (string, error) 
 		}
 
 		// Dump the DB in the pod
-		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "pg_dump -Fc --dbname=" + uri + " | gzip > /" + c.MigrationName}
+		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "pg_dump -c --dbname=" + uri + " | gzip > /" + c.MigrationName}
 		cmd = exec.Command("kubectl", args...)
 
 		output3, err := utils.CmdExecutor(cmd)
@@ -676,7 +676,7 @@ func (m *Repository) srcPG(g *dal.Migration, c MigrationCommon) (string, error) 
 		}
 		defer outfile.Close()
 
-		args := []string{"-Fc", "--dbname=" + uri}
+		args := []string{"-c", "--dbname=" + uri}
 		pg_dump := exec.Command("pg_dump", args...)
 
 		pg_dump.Stderr = os.Stderr
