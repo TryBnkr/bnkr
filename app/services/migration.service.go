@@ -847,8 +847,13 @@ func (m *Repository) srcMongo(g *dal.Migration, c MigrationCommon) (string, erro
 func (m *Repository) srcK8SFiles(g *dal.Migration, c MigrationCommon) (string, error) {
 	var o string
 
+	// DEBUG
+	fmt.Println("from srcK8SFiles")
+
 	kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.SrcKubeconfig, "kubeconfig.yml")
 	if err != nil {
+		// DEBUG
+		fmt.Println("Error creating kubeconfig: ", err)
 		return o, err
 	}
 
