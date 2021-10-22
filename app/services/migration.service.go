@@ -587,7 +587,7 @@ func (m *Repository) srcPG(g *dal.Migration, c MigrationCommon) (string, error) 
 		defer conn.Close()
 
 		// Create the DB dump on the server
-		err = utils.RunSshCommand(conn, "pg_dump --dbname=" + uri + " | gzip > /" + c.MigrationName)
+		err = utils.RunSshCommand(conn, "pg_dump --dbname="+uri+" | gzip > /"+c.MigrationName)
 		if err != nil {
 			return o, err
 		}
@@ -739,7 +739,7 @@ func (m *Repository) srcMongo(g *dal.Migration, c MigrationCommon) (string, erro
 		defer conn.Close()
 
 		// Create the DB dump on the server
-		err = utils.RunSshCommand(conn, "mongodump --uri=" + g.SrcURI + " --gzip --archive=/" + c.MigrationName)
+		err = utils.RunSshCommand(conn, "mongodump --uri="+g.SrcURI+" --gzip --archive=/"+c.MigrationName)
 
 		if err != nil {
 			return o, err
@@ -849,34 +849,53 @@ func (m *Repository) srcK8SFiles(g *dal.Migration, c MigrationCommon) (string, e
 
 	kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.SrcKubeconfig, "kubeconfig.yml")
 	if err != nil {
-		m.App.ErrorLog.Println(err)
 		return o, err
 	}
+
+	// DEBUG
+	fmt.Println("kubeconfigPath: ", kubeconfigPath)
 
 	podName := g.SrcPodName
 
 	var args []string
 
 	if g.SrcType != "pod" {
+		// DEBUG
+		fmt.Println("Not pod")
+
 		args = []string{"get", "pod", "--kubeconfig", kubeconfigPath, "-l", g.SrcPodLabel, "-o", "jsonpath={.items[0].metadata.name}"}
 		podNameBytes, err := exec.Command("kubectl", args...).Output()
 		if err != nil {
+			// DEBUG
+			fmt.Println("Error getting pod name: ", err)
 			return o, err
 		}
 
 		podName = string(podNameBytes)
+		// DEBUG
+		fmt.Println("Found pod name: ", podName)
 	}
+
+	// DEBUG
+	fmt.Println("Start creating tarball...")
 
 	// Create tarball inside the deployment container
 	args = []string{"exec", "-c", g.SrcContainer, podName, "--kubeconfig", kubeconfigPath, "--", "tar -czf /" + c.MigrationName + " -C " + g.SrcFilesPath + " ."}
 	cmd := exec.Command("kubectl", args...)
 
 	output, err := utils.CmdExecutor(cmd)
+	// DEBUG
+	fmt.Println("After exec: ", output, err)
 	o += `
 ` + output
 	if err != nil {
+		// DEBUG
+		fmt.Println("Error creating tarball: ", err)
 		return o, err
 	}
+
+	// DEBUG
+	fmt.Println("Start moving the tarball...")
 
 	// Move the tarball to Bnkr
 	args = []string{"cp", "--kubeconfig", kubeconfigPath, podName + ":/" + c.MigrationName, c.MigrationName}
@@ -884,11 +903,18 @@ func (m *Repository) srcK8SFiles(g *dal.Migration, c MigrationCommon) (string, e
 	cmd.Dir = c.TmpPath
 
 	output2, err := utils.CmdExecutor(cmd)
+	// DEBUG
+	fmt.Println("After cp: ", output2, err)
 	o += `
 ` + output2
 	if err != nil {
+		// DEBUG
+		fmt.Println("Oh cp error: ", err)
 		return o, err
 	}
+
+	// DEBUG
+	fmt.Println("Start cleanup...")
 
 	// Cleanup, remove the tarball file from the deployment
 	args = []string{"exec", "--kubeconfig", kubeconfigPath, "-c", g.SrcContainer, podName, "--", "rm /" + c.MigrationName}
@@ -896,11 +922,18 @@ func (m *Repository) srcK8SFiles(g *dal.Migration, c MigrationCommon) (string, e
 	cmd.Dir = c.TmpPath
 
 	output3, err := utils.CmdExecutor(cmd)
+	// DEBUG
+	fmt.Println("After exec cleanup: ", output3, err)
 	o += `
 ` + output3
 	if err != nil {
+		// DEBUG
+		fmt.Println("Oh cleanup error: ", err)
 		return o, err
 	}
+
+	// DEBUG
+	fmt.Println("We reached the end!", o)
 
 	return o, nil
 }
@@ -915,7 +948,7 @@ func (m *Repository) srcSSHFiles(g *dal.Migration, c MigrationCommon) (string, e
 	defer conn.Close()
 
 	// Create the tarball on the server
-	err = utils.RunSshCommand(conn, "tar -czf /" + c.MigrationName + " -C " + g.SrcFilesPath + " .")
+	err = utils.RunSshCommand(conn, "tar -czf /"+c.MigrationName+" -C "+g.SrcFilesPath+" .")
 
 	if err != nil {
 		return o, err
@@ -1015,7 +1048,7 @@ func (m *Repository) destSSHFiles(g *dal.Migration, c MigrationCommon) (string, 
 	}
 
 	// Restore the files on the server
-	err = utils.RunSshCommand(conn, "tar -xzf /" + c.MigrationName + " -C " + g.DestFilesPath)
+	err = utils.RunSshCommand(conn, "tar -xzf /"+c.MigrationName+" -C "+g.DestFilesPath)
 
 	if err != nil {
 		return o, err
@@ -1049,7 +1082,7 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 		}
 
 		// Restore the DB dump on the server
-		err = utils.RunSshCommand(conn, "gunzip < /" + c.MigrationName + " | mysql --max_allowed_packet=512M -h " + g.DestDbHost + " -u " + g.DestDbUser + " -p" + g.DestDbPassword +" "+ g.DestDbName)
+		err = utils.RunSshCommand(conn, "gunzip < /"+c.MigrationName+" | mysql --max_allowed_packet=512M -h "+g.DestDbHost+" -u "+g.DestDbUser+" -p"+g.DestDbPassword+" "+g.DestDbName)
 
 		if err != nil {
 			return o, err
@@ -1203,7 +1236,7 @@ func (m *Repository) destPG(g *dal.Migration, c MigrationCommon) (string, error)
 		}
 
 		// Restore the DB dump on the server
-		err = utils.RunSshCommand(conn, "gunzip < /" + c.MigrationName + " | psql " + uri)
+		err = utils.RunSshCommand(conn, "gunzip < /"+c.MigrationName+" | psql "+uri)
 		if err != nil {
 			return o, err
 		}
@@ -1351,7 +1384,7 @@ func (m *Repository) destMongo(g *dal.Migration, c MigrationCommon) (string, err
 		}
 
 		// Restore the DB dump on the server
-		err = utils.RunSshCommand(conn, "mongorestore --uri=" + g.DestURI + " --gzip --drop --archive=/" + c.MigrationName)
+		err = utils.RunSshCommand(conn, "mongorestore --uri="+g.DestURI+" --gzip --drop --archive=/"+c.MigrationName)
 		if err != nil {
 			return o, err
 		}
