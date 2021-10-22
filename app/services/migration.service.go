@@ -464,7 +464,7 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		fmt.Println("Dump the DB in the pod")
 
 		// Dump the DB in the pod
-		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; mysqldump --no-tablespaces -h " + g.SrcDbHost + " -u " + g.SrcDbUser + " --port=" + g.SrcDbPort + " -p" + g.SrcDbPassword + " " + g.SrcDbName + " | gzip > " + c.MigrationName}
+		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "mysqldump --no-tablespaces -h " + g.SrcDbHost + " -u " + g.SrcDbUser + " --port=" + g.SrcDbPort + " -p" + g.SrcDbPassword + " " + g.SrcDbName + " | gzip > /" + c.MigrationName}
 		cmd = exec.Command("kubectl", args...)
 
 		output3, err := utils.CmdExecutor(cmd)
@@ -635,7 +635,7 @@ func (m *Repository) srcPG(g *dal.Migration, c MigrationCommon) (string, error) 
 		}
 
 		// Dump the DB in the pod
-		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; pg_dump --dbname=" + uri + " | gzip > " + c.MigrationName}
+		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "pg_dump --dbname=" + uri + " | gzip > /" + c.MigrationName}
 		cmd = exec.Command("kubectl", args...)
 
 		output3, err := utils.CmdExecutor(cmd)
@@ -788,7 +788,7 @@ func (m *Repository) srcMongo(g *dal.Migration, c MigrationCommon) (string, erro
 		}
 
 		// Dump the DB in the pod
-		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; mongodump --uri=" + g.SrcURI, "--gzip", "--archive=/" + c.MigrationName}
+		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "mongodump --uri=" + g.SrcURI, "--gzip", "--archive=/" + c.MigrationName}
 		cmd = exec.Command("kubectl", args...)
 
 		output3, err := utils.CmdExecutor(cmd)
@@ -868,7 +868,7 @@ func (m *Repository) srcK8SFiles(g *dal.Migration, c MigrationCommon) (string, e
 	}
 
 	// Create tarball inside the deployment container
-	args = []string{"exec", "-c", g.SrcContainer, podName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd / ; tar -czf " + c.MigrationName + " -C " + g.SrcFilesPath + " ."}
+	args = []string{"exec", "-c", g.SrcContainer, podName, "--kubeconfig", kubeconfigPath, "--", "tar -czf /" + c.MigrationName + " -C " + g.SrcFilesPath + " ."}
 	cmd := exec.Command("kubectl", args...)
 
 	output, err := utils.CmdExecutor(cmd)
@@ -891,7 +891,7 @@ func (m *Repository) srcK8SFiles(g *dal.Migration, c MigrationCommon) (string, e
 	}
 
 	// Cleanup, remove the tarball file from the deployment
-	args = []string{"exec", "--kubeconfig", kubeconfigPath, "-c", g.SrcContainer, podName, "--", "sh", "-c", "cd / ; rm " + c.MigrationName}
+	args = []string{"exec", "--kubeconfig", kubeconfigPath, "-c", g.SrcContainer, podName, "--", "rm /" + c.MigrationName}
 	cmd = exec.Command("kubectl", args...)
 	cmd.Dir = c.TmpPath
 
@@ -974,7 +974,7 @@ func (m *Repository) destK8SFiles(g *dal.Migration, c MigrationCommon) (string, 
 	}
 
 	// Extract the tarball
-	args = []string{"exec", podName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd / ; tar -xzf " + c.MigrationName + " -C " + g.DestFilesPath}
+	args = []string{"exec", podName, "--kubeconfig", kubeconfigPath, "--", "tar -xzf /" + c.MigrationName + " -C " + g.DestFilesPath}
 	cmd = exec.Command("kubectl", args...)
 
 	output2, err := utils.CmdExecutor(cmd)
@@ -985,7 +985,7 @@ func (m *Repository) destK8SFiles(g *dal.Migration, c MigrationCommon) (string, 
 	}
 
 	// Cleanup, remove the tarball file from the pod
-	args = []string{"exec", "--kubeconfig", kubeconfigPath, "-c", g.DestContainer, podName, "--", "sh", "-c", "cd / ; rm " + c.MigrationName}
+	args = []string{"exec", "--kubeconfig", kubeconfigPath, "-c", g.DestContainer, podName, "--", "rm /" + c.MigrationName}
 	cmd = exec.Command("kubectl", args...)
 
 	output3, err := utils.CmdExecutor(cmd)
@@ -1105,7 +1105,7 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 		}
 
 		// Restore the DB on the pod
-		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; gunzip < " + c.MigrationName + " | mysql", "--max_allowed_packet=512M", "-h", g.DestDbHost, "-u", g.DestDbUser, "-p" + g.DestDbPassword, g.DestDbName}
+		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "gunzip < /" + c.MigrationName + " | mysql", "--max_allowed_packet=512M", "-h", g.DestDbHost, "-u", g.DestDbUser, "-p" + g.DestDbPassword, g.DestDbName}
 		cmd = exec.Command("kubectl", args...)
 
 		output4, err := utils.CmdExecutor(cmd)
@@ -1257,7 +1257,7 @@ func (m *Repository) destPG(g *dal.Migration, c MigrationCommon) (string, error)
 		}
 
 		// Restore the DB on the pod
-		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; gunzip < " + c.MigrationName + " | psql " + uri}
+		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "gunzip < /" + c.MigrationName + " | psql " + uri}
 		cmd = exec.Command("kubectl", args...)
 
 		output4, err := utils.CmdExecutor(cmd)
@@ -1405,7 +1405,7 @@ func (m *Repository) destMongo(g *dal.Migration, c MigrationCommon) (string, err
 		}
 
 		// Restore the DB on the pod
-		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; mongorestore", "--uri=" + g.DestURI, "--gzip", "--drop", "--archive=/" + c.MigrationName}
+		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "mongorestore", "--uri=" + g.DestURI, "--gzip", "--drop", "--archive=/" + c.MigrationName}
 		cmd = exec.Command("kubectl", args...)
 
 		output4, err := utils.CmdExecutor(cmd)
