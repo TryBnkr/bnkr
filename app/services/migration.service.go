@@ -1529,6 +1529,8 @@ func (m *Repository) migrate(id int, migration *dal.Migration) error {
 	// Files In Deployment or StatefulSet
 	case "object":
 	case "pod":
+		// DEBUG
+		fmt.Println("K8S related")
 		srcOut, srcErr = Repo.srcK8SFiles(migration, commons)
 
 	case "s3":
