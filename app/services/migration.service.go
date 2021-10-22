@@ -1515,8 +1515,7 @@ func (m *Repository) migrate(id int, migration *dal.Migration) error {
 	case "db":
 		srcOut, srcErr = Repo.srcDB(migration, commons)
 
-	case "pg":
-	case "bnkr":
+	case "pg", "bnkr":
 		srcOut, srcErr = Repo.srcPG(migration, commons)
 
 	case "mongo":
@@ -1527,8 +1526,7 @@ func (m *Repository) migrate(id int, migration *dal.Migration) error {
 		srcOut, srcErr = Repo.srcSSHFiles(migration, commons)
 
 	// Files In Deployment or StatefulSet
-	case "object":
-	case "pod":
+	case "object", "pod":
 		// DEBUG
 		fmt.Println("K8S related")
 		srcOut, srcErr = Repo.srcK8SFiles(migration, commons)
@@ -1551,8 +1549,7 @@ func (m *Repository) migrate(id int, migration *dal.Migration) error {
 	case "db":
 		destOut, destErr = Repo.destDB(migration, commons)
 
-	case "pg":
-	case "bnkr":
+	case "pg", "bnkr":
 		destOut, destErr = Repo.destPG(migration, commons)
 
 	case "mongo":
@@ -1563,8 +1560,7 @@ func (m *Repository) migrate(id int, migration *dal.Migration) error {
 		destOut, destErr = Repo.destSSHFiles(migration, commons)
 
 	// Files In Deployment or StatefulSet
-	case "object":
-	case "pod":
+	case "object", "pod":
 		destOut, destErr = Repo.destK8SFiles(migration, commons)
 
 	// S3

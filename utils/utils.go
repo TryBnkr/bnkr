@@ -584,8 +584,7 @@ func GetRequiredMigTypeFields(theType string, itfor string) []string {
 		result = []string{itfor + "_db_name", itfor + "_db_user", itfor + "_db_password", itfor + "_db_host", itfor + "_db_port"}
 	case "object":
 		result = []string{itfor + "_pod_label", itfor + "_files_path", itfor + "_container"}
-	case "mongo":
-	case "pg":
+	case "mongo", "pg":
 		result = []string{itfor + "_uri"}
 	case "pod":
 		result = []string{itfor + "_files_path", itfor + "_container", itfor + "_pod_name"}
