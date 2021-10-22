@@ -922,7 +922,7 @@ func (m *Repository) srcK8SFiles(g *dal.Migration, c MigrationCommon) (string, e
 	fmt.Println("Start cleanup...")
 
 	// Cleanup, remove the tarball file from the deployment
-	args = []string{"exec", "--kubeconfig", kubeconfigPath, "-c", g.SrcContainer, podName, "--", "rm /" + c.MigrationName}
+	args = []string{"exec", "--kubeconfig", kubeconfigPath, "-c", g.SrcContainer, podName, "--", "sh", "-c", "rm /" + c.MigrationName}
 	cmd = exec.Command("kubectl", args...)
 	cmd.Dir = c.TmpPath
 
@@ -1012,7 +1012,7 @@ func (m *Repository) destK8SFiles(g *dal.Migration, c MigrationCommon) (string, 
 	}
 
 	// Extract the tarball
-	args = []string{"exec", podName, "--kubeconfig", kubeconfigPath, "--", "tar -xzf /" + c.MigrationName + " -C " + g.DestFilesPath}
+	args = []string{"exec", podName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "tar -xzf /" + c.MigrationName + " -C " + g.DestFilesPath}
 	cmd = exec.Command("kubectl", args...)
 
 	output2, err := utils.CmdExecutor(cmd)
@@ -1023,7 +1023,7 @@ func (m *Repository) destK8SFiles(g *dal.Migration, c MigrationCommon) (string, 
 	}
 
 	// Cleanup, remove the tarball file from the pod
-	args = []string{"exec", "--kubeconfig", kubeconfigPath, "-c", g.DestContainer, podName, "--", "rm /" + c.MigrationName}
+	args = []string{"exec", "--kubeconfig", kubeconfigPath, "-c", g.DestContainer, podName, "--", "sh", "-c", "rm /" + c.MigrationName}
 	cmd = exec.Command("kubectl", args...)
 
 	output3, err := utils.CmdExecutor(cmd)
