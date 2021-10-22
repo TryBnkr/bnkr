@@ -240,14 +240,13 @@
             <div class="mb-3" x-show="src_type=='object' || src_type=='pod' || src_type=='ssh'">
                 <label for="exampleInputSrcFilesPath1" class="form-label">Files Path</label>
                 <input name="src_files_path" class="form-control {{if .Form.Errors.Get "src_files_path"}} is-invalid {{else if
-                    .Form.Has "src_files_path" }} is-valid {{end}}" value="{{$res.SrcFilesPath}}" id="exampleInputSrcFilesPath1"
+                    .Form.Has "src_files_path" }} is-valid {{end}}" placeholder="/var/www/html" value="{{$res.SrcFilesPath}}" id="exampleInputSrcFilesPath1"
                     aria-describedby="src_files_pathHelp">
                 {{with .Form.Errors.Get "src_files_path"}}
                 <div class="invalid-feedback">
                     {{.}}
                 </div>
                 {{end}}
-                <div id="src_files_pathHelp" class="form-text">The folder path inside the container.</div>
             </div>
             <div x-show="src_type=='s3'" class="mb-3">
                 <label for="exampleInputSrcS3AccessKey1" class="form-label">S3 Access Key</label>
@@ -505,14 +504,13 @@
             <div class="mb-3" x-show="dest_type=='object' || dest_type=='pod'">
                 <label for="exampleInputDestFilesPath1" class="form-label">Files Path</label>
                 <input name="dest_files_path" class="form-control {{if .Form.Errors.Get "dest_files_path"}} is-invalid {{else if
-                    .Form.Has "dest_files_path" }} is-valid {{end}}" value="{{$res.DestFilesPath}}" id="exampleInputDestFilesPath1"
+                    .Form.Has "dest_files_path" }} is-valid {{end}}" placeholder="/var/www/html" value="{{$res.DestFilesPath}}" id="exampleInputDestFilesPath1"
                     aria-describedby="dest_files_pathHelp">
                 {{with .Form.Errors.Get "dest_files_path"}}
                 <div class="invalid-feedback">
                     {{.}}
                 </div>
                 {{end}}
-                <div id="dest_files_pathHelp" class="form-text">The folder path inside the container.</div>
             </div>
             <div x-show="dest_type=='s3'" class="mb-3">
                 <label for="exampleInputDestS3AccessKey1" class="form-label">S3 Access Key</label>

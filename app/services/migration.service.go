@@ -400,7 +400,7 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		defer conn.Close()
 
 		// Create the DB dump on the server
-		err = utils.RunSshCommand(conn, "mysqldump -h "+g.SrcDbHost+" -u "+g.SrcDbUser+" --port="+g.SrcDbPort+" -p"+g.SrcDbPassword+" "+g.SrcDbName+" | gzip > /"+c.MigrationName)
+		err = utils.RunSshCommand(conn, "mysqldump --no-tablespaces -h "+g.SrcDbHost+" -u "+g.SrcDbUser+" --port="+g.SrcDbPort+" -p"+g.SrcDbPassword+" "+g.SrcDbName+" | gzip > /"+c.MigrationName)
 
 		if err != nil {
 			return o, err
@@ -464,7 +464,7 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		fmt.Println("Dump the DB in the pod")
 
 		// Dump the DB in the pod
-		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; mysqldump -h " + g.SrcDbHost + " -u " + g.SrcDbUser + " --port=" + g.SrcDbPort + " -p" + g.SrcDbPassword + " " + g.SrcDbName + " | gzip > " + c.MigrationName}
+		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd /; mysqldump --no-tablespaces -h " + g.SrcDbHost + " -u " + g.SrcDbUser + " --port=" + g.SrcDbPort + " -p" + g.SrcDbPassword + " " + g.SrcDbName + " | gzip > " + c.MigrationName}
 		cmd = exec.Command("kubectl", args...)
 
 		output3, err := utils.CmdExecutor(cmd)
@@ -517,7 +517,7 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		}
 		defer outfile.Close()
 
-		args := []string{"-h", g.SrcDbHost, "-u", g.SrcDbUser, "--port=" + g.SrcDbPort, "-p" + g.SrcDbPassword, g.SrcDbName}
+		args := []string{"--no-tablespaces", "-h", g.SrcDbHost, "-u", g.SrcDbUser, "--port=" + g.SrcDbPort, "-p" + g.SrcDbPassword, g.SrcDbName}
 		mysqldump := exec.Command("mysqldump", args...)
 
 		mysqldump.Stderr = os.Stderr
@@ -908,42 +908,29 @@ func (m *Repository) srcK8SFiles(g *dal.Migration, c MigrationCommon) (string, e
 func (m *Repository) srcSSHFiles(g *dal.Migration, c MigrationCommon) (string, error) {
 	var o string
 
-	sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.SrcSshKey, "id_rsa")
+	conn, err := utils.GetSshConn(g.SrcSshUser, g.SrcSshHost, g.SrcSshPort, g.SrcSshKey)
 	if err != nil {
-		m.App.ErrorLog.Println(err)
-		return "", err
+		return o, err
 	}
+	defer conn.Close()
 
 	// Create the tarball on the server
-	args := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.SrcSshUser + "@" + g.SrcSshHost, "cd /; tar -czf " + c.MigrationName + " -C " + g.SrcFilesPath + " ."}
-	cmd := exec.Command("ssh", args...)
+	err = utils.RunSshCommand(conn, "tar -czf /" + c.MigrationName + " -C " + g.SrcFilesPath + " .")
 
-	output, err := utils.CmdExecutor(cmd)
-	o += `
-` + output
 	if err != nil {
 		return o, err
 	}
 
 	// Move the tarball DB to Bnkr
-	args2 := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.SrcSshUser + "@" + g.SrcSshHost + ":/" + c.MigrationName, c.MigrationName}
-	cmd2 := exec.Command("scp", args2...)
-	cmd2.Dir = c.TmpPath
+	_, err = utils.DownloadFileOverSftp(conn, "/"+c.MigrationName, c.TmpPath+"/"+c.MigrationName)
 
-	output2, err := utils.CmdExecutor(cmd2)
-	o += `
-` + output2
 	if err != nil {
 		return o, err
 	}
 
 	// Cleanup the server
-	args = []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.SrcSshUser + "@" + g.SrcSshHost, "cd /; rm", c.MigrationName}
-	cmd = exec.Command("ssh", args...)
+	err = utils.RunSshCommand(conn, "rm /"+c.MigrationName)
 
-	output3, err := utils.CmdExecutor(cmd)
-	o += `
-` + output3
 	if err != nil {
 		return o, err
 	}
@@ -1015,42 +1002,28 @@ func (m *Repository) destSSHFiles(g *dal.Migration, c MigrationCommon) (string, 
 	var o string
 
 	// Create the SSH key file
-	sshKeyPath, err := utils.CreateSSHKeyFile(c.TmpPath, g.DestSshKey, "dest_id_rsa")
+	conn, err := utils.GetSshConn(g.DestSshUser, g.DestSshHost, g.DestSshPort, g.DestSshKey)
 	if err != nil {
-		m.App.ErrorLog.Println(err)
-		return "", err
+		return o, err
 	}
+	defer conn.Close()
 
 	// Move the tarball to server
-	args2 := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", c.MigrationName, g.DestSshUser + "@" + g.DestSshHost + ":/" + c.MigrationName}
-	cmd2 := exec.Command("scp", args2...)
-	cmd2.Dir = c.TmpPath
-
-	output, err := utils.CmdExecutor(cmd2)
-	o += `
-` + output
+	_, err = utils.UploadFileOverSftp(conn, c.TmpPath+"/"+c.MigrationName, "/"+c.MigrationName)
 	if err != nil {
 		return o, err
 	}
 
 	// Restore the files on the server
-	args := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.DestSshUser + "@" + g.DestSshHost, "cd /; tar -xzf " + c.MigrationName + " -C " + g.DestFilesPath}
-	cmd := exec.Command("ssh", args...)
+	err = utils.RunSshCommand(conn, "tar -xzf /" + c.MigrationName + " -C " + g.DestFilesPath)
 
-	output2, err := utils.CmdExecutor(cmd)
-	o += `
-` + output2
 	if err != nil {
 		return o, err
 	}
 
 	// Cleanup, remove the tarball file from the server
-	args3 := []string{"-i", sshKeyPath, "-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null", g.DestSshUser + "@" + g.DestSshHost, "cd /; rm " + c.MigrationName}
-	cmd3 := exec.Command("ssh", args3...)
+	err = utils.RunSshCommand(conn, "rm /"+c.MigrationName)
 
-	output3, err := utils.CmdExecutor(cmd3)
-	o += `
-` + output3
 	if err != nil {
 		return o, err
 	}
@@ -1564,7 +1537,7 @@ func (m *Repository) migrate(id int, migration *dal.Migration) error {
 	if destErr != nil {
 		Repo.TerminateMigration("Error while processing the destination!", commons.FailedStatus, &commons, migration, true, destOut+`
 `+destErr.Error())
-		return srcErr
+		return destErr
 	}
 
 	Repo.TerminateMigration("", commons.SuccessStatus, &commons, migration, true, srcOut+`

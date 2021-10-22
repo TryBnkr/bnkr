@@ -86,6 +86,8 @@
           .then(data => {
             if (data.data) {
               this.migrations = data.data;
+            } else {
+              this.migrations = []
             }
           })
       },

@@ -91,6 +91,8 @@
           .then(data => {
             if (data.data) {
               this.backups = data.data
+            } else {
+              this.backups = []
             }
           })
       },
