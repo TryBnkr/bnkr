@@ -294,7 +294,7 @@
             </div>
             <div x-show="src_type=='s3'" class="mb-3">
                 <label for="exampleInputSrcS3File1" class="form-label">File on S3</label>
-                <input placeholder="2021/weekly/db.sql.gz" name="src_s3_file" class="form-control {{if .Form.Errors.Get "src_s3_file"}} is-invalid {{else
+                <input placeholder="/2021/weekly/db.sql.gz" name="src_s3_file" class="form-control {{if .Form.Errors.Get "src_s3_file"}} is-invalid {{else
                     if .Form.Has "src_s3_file" }} is-valid {{end}}" value="{{$res.SrcS3File}}"
                     id="exampleInputSrcS3File1" aria-describedby="src_s3_fileHelp">
                 {{with .Form.Errors.Get "src_s3_file"}}

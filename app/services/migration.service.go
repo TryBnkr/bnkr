@@ -850,7 +850,7 @@ func (m *Repository) srcK8SFiles(g *dal.Migration, c MigrationCommon) (string, e
 	kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.SrcKubeconfig, "kubeconfig.yml")
 	if err != nil {
 		m.App.ErrorLog.Println(err)
-		return "", err
+		return o, err
 	}
 
 	podName := g.SrcPodName
@@ -861,7 +861,7 @@ func (m *Repository) srcK8SFiles(g *dal.Migration, c MigrationCommon) (string, e
 		args = []string{"get", "pod", "--kubeconfig", kubeconfigPath, "-l", g.SrcPodLabel, "-o", "jsonpath={.items[0].metadata.name}"}
 		podNameBytes, err := exec.Command("kubectl", args...).Output()
 		if err != nil {
-			return "", err
+			return o, err
 		}
 
 		podName = string(podNameBytes)
@@ -1494,7 +1494,7 @@ func (m *Repository) migrate(id int, migration *dal.Migration) error {
 		srcOut, srcErr = Repo.srcK8SFiles(migration, commons)
 
 	case "s3":
-		if err := Repo.DownloadFromS3(migration.SrcS3AccessKey, migration.SrcS3SecretKey, migration.SrcBucket, migration.SrcRegion, commons.S3FullPath, commons.MigrationPath); err != nil {
+		if err := Repo.DownloadFromS3(migration.SrcS3AccessKey, migration.SrcS3SecretKey, migration.SrcBucket, migration.SrcRegion, migration.SrcS3File, commons.MigrationPath); err != nil {
 			srcOut, srcErr = "", err
 		}
 	}
