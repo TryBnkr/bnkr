@@ -501,7 +501,7 @@
                 <div id="dest_containerHelp" class="form-text">The container that we are going to migration the files inside it.
                 </div>
             </div>
-            <div class="mb-3" x-show="dest_type=='object' || dest_type=='pod'">
+            <div class="mb-3" x-show="dest_type=='object' || dest_type=='pod' || dest_type=='ssh'">
                 <label for="exampleInputDestFilesPath1" class="form-label">Files Path</label>
                 <input name="dest_files_path" class="form-control {{if .Form.Errors.Get "dest_files_path"}} is-invalid {{else if
                     .Form.Has "dest_files_path" }} is-valid {{end}}" placeholder="/var/www/html" value="{{$res.DestFilesPath}}" id="exampleInputDestFilesPath1"
