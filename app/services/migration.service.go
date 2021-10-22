@@ -393,7 +393,7 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 	switch g.SrcAccess {
 	// Is the DB in K8S or SSH or we have direct access to it
 	case "ssh":
-		conn, err := utils.GetSshConn(g.SrcSshUser, g.SrcSshHost, g.SrcSshKey)
+		conn, err := utils.GetSshConn(g.SrcSshUser, g.SrcSshHost, g.SrcSshPort, g.SrcSshKey)
 		if err != nil {
 			return o, err
 		}
@@ -580,7 +580,7 @@ func (m *Repository) srcPG(g *dal.Migration, c MigrationCommon) (string, error) 
 	switch g.SrcAccess {
 	// Is the DB in K8S or SSH or we have direct access to it
 	case "ssh":
-		conn, err := utils.GetSshConn(g.SrcSshUser, g.SrcSshHost, g.SrcSshKey)
+		conn, err := utils.GetSshConn(g.SrcSshUser, g.SrcSshHost, g.SrcSshPort, g.SrcSshKey)
 		if err != nil {
 			return o, err
 		}
@@ -732,7 +732,7 @@ func (m *Repository) srcMongo(g *dal.Migration, c MigrationCommon) (string, erro
 
 	switch g.SrcAccess {
 	case "ssh":
-		conn, err := utils.GetSshConn(g.SrcSshUser, g.SrcSshHost, g.SrcSshKey)
+		conn, err := utils.GetSshConn(g.SrcSshUser, g.SrcSshHost, g.SrcSshPort, g.SrcSshKey)
 		if err != nil {
 			return o, err
 		}
@@ -1063,7 +1063,7 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 
 	switch g.DestAccess {
 	case "ssh":
-		conn, err := utils.GetSshConn(g.DestSshUser, g.DestSshHost, g.DestSshKey)
+		conn, err := utils.GetSshConn(g.DestSshUser, g.DestSshHost, g.DestSshPort, g.DestSshKey)
 		if err != nil {
 			return o, err
 		}
@@ -1217,7 +1217,7 @@ func (m *Repository) destPG(g *dal.Migration, c MigrationCommon) (string, error)
 
 	switch g.DestAccess {
 	case "ssh":
-		conn, err := utils.GetSshConn(g.DestSshUser, g.DestSshHost, g.DestSshKey)
+		conn, err := utils.GetSshConn(g.DestSshUser, g.DestSshHost, g.DestSshPort, g.DestSshKey)
 		if err != nil {
 			return o, err
 		}
@@ -1365,7 +1365,7 @@ func (m *Repository) destMongo(g *dal.Migration, c MigrationCommon) (string, err
 
 	switch g.DestAccess {
 	case "ssh":
-		conn, err := utils.GetSshConn(g.DestSshUser, g.DestSshHost, g.DestSshKey)
+		conn, err := utils.GetSshConn(g.DestSshUser, g.DestSshHost, g.DestSshPort, g.DestSshKey)
 		if err != nil {
 			return o, err
 		}

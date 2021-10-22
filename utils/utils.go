@@ -693,7 +693,7 @@ func WriteJSON(w http.ResponseWriter, status int, data interface{}, wrap string)
 	return nil
 }
 
-func GetSshConn(user string, host string, key string) (*ssh.Client, error) {
+func GetSshConn(user string, host string, port string, key string) (*ssh.Client, error) {
 	signer, err := ssh.ParsePrivateKey([]byte(key))
 	if err != nil {
 		return nil, err
@@ -707,7 +707,7 @@ func GetSshConn(user string, host string, key string) (*ssh.Client, error) {
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	conn, err := ssh.Dial("tcp", host, config)
+	conn, err := ssh.Dial("tcp", host+":"+port, config)
 	if err != nil {
 		return nil, err
 	}
