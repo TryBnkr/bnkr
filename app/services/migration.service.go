@@ -885,7 +885,7 @@ func (m *Repository) srcK8SFiles(g *dal.Migration, c MigrationCommon) (string, e
 	fmt.Println("Start creating tarball...")
 
 	// Create tarball inside the deployment container
-	args = []string{"exec", "-c", g.SrcContainer, podName, "--kubeconfig", kubeconfigPath, "--", "tar -czf /" + c.MigrationName + " -C " + g.SrcFilesPath + " ."}
+	args = []string{"exec", "-c", g.SrcContainer, podName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "cd / ; tar -czf " + c.MigrationName + " -C " + g.SrcFilesPath + " ."}
 	cmd := exec.Command("kubectl", args...)
 
 	output, err := utils.CmdExecutor(cmd)
