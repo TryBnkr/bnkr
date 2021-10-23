@@ -357,7 +357,7 @@
             <div x-show="(dest_access=='ssh' && (dest_type=='db' || dest_type=='mongo' || dest_type=='pg' || dest_type=='bnkr')) || dest_type=='ssh'" class="mb-3">
                 <label for="exampleInputDestSshHost1" class="form-label">SSH Host</label>
                 <input name="dest_ssh_host" class="form-control {{if .Form.Errors.Get "dest_ssh_host"}} is-invalid {{else if
-                    .Form.Has "dest_ssh_host" }} is-valid {{end}}" value="{{$res.DestDbName}}" id="exampleInputDestSshHost1"
+                    .Form.Has "dest_ssh_host" }} is-valid {{end}}" value="{{$res.DestSshHost}}" id="exampleInputDestSshHost1"
                     aria-describedby="dest_ssh_hostHelp">
                 {{with .Form.Errors.Get "dest_ssh_host"}}
                 <div class="invalid-feedback">
