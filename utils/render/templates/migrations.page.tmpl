@@ -19,7 +19,7 @@
     <template x-if="!deletedItems.includes({{.ID}})">
       <tr>
         <td scope="row">{{.ID}}</td>
-        <td>{{.Name}}</td>
+        <td><a href="/migrations/{{.ID}}/details">{{.Name}}</a></td>
         <td>{{.Timezone}}</td>
         <td>{{if eq .Status.Valid true}}{{if eq .Status.String "success"}}<span class="badge rounded-pill bg-success">Success</span>{{else if eq .Status.String "running"}}<span class="badge rounded-pill bg-primary">Running</span>{{else}}<span class="badge rounded-pill bg-danger">Fail</span>{{end}}{{else}}<span class="badge rounded-pill bg-secondary">Didn't run yet</span>{{end}}</td>
         <td>

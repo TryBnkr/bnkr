@@ -81,6 +81,27 @@ func (m *Repository) GetNewMigration(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (m *Repository) GetMigrationDetails(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
+	data := make(map[string]interface{})
+	if id != 0 {
+		migration := &dal.Migration{}
+
+		if err := dal.FindMigrationById(migration, id); err != nil {
+			utils.ServerError(w, err)
+			return
+		}
+		data["migration"] = migration
+	}
+
+	data["timezones"] = utils.GetTimeZones()
+
+	render.Template(w, r, "migrations.details.page.tmpl", &types.TemplateData{
+		Form: forms.New(nil),
+		Data: data,
+	})
+}
+
 func (m *Repository) PostNewMigration(w http.ResponseWriter, r *http.Request) {
 	_ = m.App.Session.RenewToken(r.Context())
 

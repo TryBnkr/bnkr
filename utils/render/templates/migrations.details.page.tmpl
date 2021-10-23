@@ -1,0 +1,21 @@
+{{template "base" .}}
+
+{{define "content"}}
+{{$migration := index .Data "migration"}}
+<input type="hidden" id="csrf_token" name="csrf_token" value="{{.CSRFToken}}">
+<div class="card border-dark mb-3">
+  <div class="card-header d-flex justify-content-between"><span>Migration details</span><a href="/migrations/{{$migration.ID}}"
+      class="card-link">Edit</a></div>
+  <div class="card-body text-dark">
+    <ul class="list-group list-group-flush">
+      <li class="list-group-item">Name: {{$migration.Name}}</li>
+    </ul>
+  </div>
+</div>
+<div class="card border-dark mb-3">
+  <div class="card-header d-flex justify-content-between"><span>Output(Stdout & Stderr)</span></div>
+  <div class="card-body text-dark">
+    <pre>{{$migration.Output}}</pre>
+  </div>
+</div>
+{{end}}
