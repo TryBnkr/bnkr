@@ -12,7 +12,6 @@ import (
 	"os/exec"
 	"regexp"
 	"runtime/debug"
-	"strings"
 
 	"github.com/MohammedAl-Mahdawi/bnkr/app/dal"
 	"github.com/MohammedAl-Mahdawi/bnkr/app/types"
@@ -717,31 +716,22 @@ func GetSshConn(user string, host string, port string, key string) (*ssh.Client,
 
 func RunSshCommand(conn *ssh.Client, cmd string) (string, error) {
 	var o string
-	buf := new(strings.Builder)
+
+	stdout := new(bytes.Buffer)
+	stderr := new(bytes.Buffer)
 
 	sess, err := conn.NewSession()
 	if err != nil {
 		return o, err
 	}
 	defer sess.Close()
-	sessStdOut, err := sess.StdoutPipe()
-	if err != nil {
-		return o, err
-	}
 
-	sessStderr, err := sess.StderrPipe()
-	if err != nil {
-		return o, err
-	}
-
-	r := io.MultiReader(sessStdOut, sessStderr)
-	_, err = io.Copy(buf, r)
-	if err != nil {
-		return o, err
-	}
-	o = buf.String()
+	sess.Stdout = stdout
+	sess.Stderr = stderr
 
 	err = sess.Run(cmd)
+	o += stdout.String() + `
+	` + stderr.String()
 	if err != nil {
 		return o, err
 	}
