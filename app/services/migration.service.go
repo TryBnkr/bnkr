@@ -1501,6 +1501,9 @@ func (m *Repository) destMongo(g *dal.Migration, c MigrationCommon) (string, err
 		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "mongorestore", "--uri=" + g.DestURI, "--gzip", "--drop", "--archive=/" + c.MigrationName}
 		cmd = exec.Command("kubectl", args...)
 
+		// DEBUG
+		fmt.Println(cmd.String())
+
 		output4, err := utils.CmdExecutor(cmd)
 		o += `
 ` + output4
