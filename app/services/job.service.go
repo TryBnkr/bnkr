@@ -771,7 +771,7 @@ func (m *Repository) PgBackup(b *types.NewBackupDTO, sendMail bool) (*dal.Job, e
 		uri = m.App.DbUri
 	}
 
-	args := []string{"--dbname=" + uri}
+	args := []string{"-c", "--dbname=" + uri}
 	pg_dump := exec.Command("pg_dump", args...)
 
 	pg_dump.Stderr = os.Stderr
