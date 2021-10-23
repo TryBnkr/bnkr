@@ -400,11 +400,14 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		defer conn.Close()
 
 		// Create the DB dump on the server
-		err = utils.RunSshCommand(conn, "mysqldump --no-tablespaces -h "+g.SrcDbHost+" -u "+g.SrcDbUser+" --port="+g.SrcDbPort+" -p"+g.SrcDbPassword+" "+g.SrcDbName+" | gzip > /"+c.MigrationName)
+		output, err := utils.RunSshCommand(conn, "mysqldump --no-tablespaces -h "+g.SrcDbHost+" -u "+g.SrcDbUser+" --port="+g.SrcDbPort+" -p"+g.SrcDbPassword+" "+g.SrcDbName+" | gzip > /"+c.MigrationName)
 
 		if err != nil {
 			return o, err
 		}
+
+		o += `
+		` + output
 
 		// Move the dump DB to Bnkr
 		_, err = utils.DownloadFileOverSftp(conn, "/"+c.MigrationName, c.TmpPath+"/"+c.MigrationName)
@@ -414,11 +417,14 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		}
 
 		// Cleanup the server
-		err = utils.RunSshCommand(conn, "rm /"+c.MigrationName)
+		output, err = utils.RunSshCommand(conn, "rm /"+c.MigrationName)
 
 		if err != nil {
 			return o, err
 		}
+
+		o += `
+		` + output
 
 	case "k8s":
 		// Create Kubeconfig file
@@ -587,10 +593,12 @@ func (m *Repository) srcPG(g *dal.Migration, c MigrationCommon) (string, error) 
 		defer conn.Close()
 
 		// Create the DB dump on the server
-		err = utils.RunSshCommand(conn, "pg_dump -c --dbname="+uri+" | gzip > /"+c.MigrationName)
+		output, err := utils.RunSshCommand(conn, "pg_dump -c --dbname="+uri+" | gzip > /"+c.MigrationName)
 		if err != nil {
 			return o, err
 		}
+		o += `
+		` + output
 
 		// Move the dump DB to Bnkr
 		_, err = utils.DownloadFileOverSftp(conn, "/"+c.MigrationName, c.TmpPath+"/"+c.MigrationName)
@@ -599,10 +607,12 @@ func (m *Repository) srcPG(g *dal.Migration, c MigrationCommon) (string, error) 
 		}
 
 		// Cleanup the server
-		err = utils.RunSshCommand(conn, "rm /"+c.MigrationName)
+		output, err = utils.RunSshCommand(conn, "rm /"+c.MigrationName)
 		if err != nil {
 			return o, err
 		}
+		o += `
+		` + output
 
 	case "k8s":
 		// Create Kubeconfig file
@@ -739,11 +749,13 @@ func (m *Repository) srcMongo(g *dal.Migration, c MigrationCommon) (string, erro
 		defer conn.Close()
 
 		// Create the DB dump on the server
-		err = utils.RunSshCommand(conn, "mongodump --uri="+g.SrcURI+" --gzip --archive=/"+c.MigrationName)
+		output, err := utils.RunSshCommand(conn, "mongodump --uri="+g.SrcURI+" --gzip --archive=/"+c.MigrationName)
 
 		if err != nil {
 			return o, err
 		}
+		o += `
+		` + output
 
 		// Move the dump DB to Bnkr
 		_, err = utils.DownloadFileOverSftp(conn, "/"+c.MigrationName, c.TmpPath+"/"+c.MigrationName)
@@ -752,10 +764,12 @@ func (m *Repository) srcMongo(g *dal.Migration, c MigrationCommon) (string, erro
 		}
 
 		// Cleanup the server
-		err = utils.RunSshCommand(conn, "rm /"+c.MigrationName)
+		output, err = utils.RunSshCommand(conn, "rm /"+c.MigrationName)
 		if err != nil {
 			return o, err
 		}
+		o += `
+		` + output
 
 	case "k8s":
 		// Create Kubeconfig file
@@ -953,11 +967,13 @@ func (m *Repository) srcSSHFiles(g *dal.Migration, c MigrationCommon) (string, e
 	defer conn.Close()
 
 	// Create the tarball on the server
-	err = utils.RunSshCommand(conn, "tar -czf /"+c.MigrationName+" -C "+g.SrcFilesPath+" .")
+	output, err := utils.RunSshCommand(conn, "tar -czf /"+c.MigrationName+" -C "+g.SrcFilesPath+" .")
 
 	if err != nil {
 		return o, err
 	}
+	o += `
+	` + output
 
 	// Move the tarball DB to Bnkr
 	_, err = utils.DownloadFileOverSftp(conn, "/"+c.MigrationName, c.TmpPath+"/"+c.MigrationName)
@@ -967,11 +983,13 @@ func (m *Repository) srcSSHFiles(g *dal.Migration, c MigrationCommon) (string, e
 	}
 
 	// Cleanup the server
-	err = utils.RunSshCommand(conn, "rm /"+c.MigrationName)
+	output, err = utils.RunSshCommand(conn, "rm /"+c.MigrationName)
 
 	if err != nil {
 		return o, err
 	}
+	o += `
+	` + output
 
 	return o, nil
 }
@@ -1053,18 +1071,22 @@ func (m *Repository) destSSHFiles(g *dal.Migration, c MigrationCommon) (string, 
 	}
 
 	// Restore the files on the server
-	err = utils.RunSshCommand(conn, "tar -xzf /"+c.MigrationName+" -C "+g.DestFilesPath)
+	output, err := utils.RunSshCommand(conn, "tar -xzf /"+c.MigrationName+" -C "+g.DestFilesPath)
 
 	if err != nil {
 		return o, err
 	}
+	o += `
+	` + output
 
 	// Cleanup, remove the tarball file from the server
-	err = utils.RunSshCommand(conn, "rm /"+c.MigrationName)
+	output, err = utils.RunSshCommand(conn, "rm /"+c.MigrationName)
 
 	if err != nil {
 		return o, err
 	}
+	o += `
+	` + output
 
 	return o, nil
 }
@@ -1087,17 +1109,21 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 		}
 
 		// Restore the DB dump on the server
-		err = utils.RunSshCommand(conn, "gunzip < /"+c.MigrationName+" | mysql --max_allowed_packet=512M -h "+g.DestDbHost+" -u "+g.DestDbUser+" -p"+g.DestDbPassword+" "+g.DestDbName)
+		output, err := utils.RunSshCommand(conn, "gunzip < /"+c.MigrationName+" | mysql --max_allowed_packet=512M -h "+g.DestDbHost+" -u "+g.DestDbUser+" -p"+g.DestDbPassword+" "+g.DestDbName)
 
 		if err != nil {
 			return o, err
 		}
+		o += `
+		` + output
 
 		// Cleanup the server
-		err = utils.RunSshCommand(conn, "rm /"+c.MigrationName)
+		output, err = utils.RunSshCommand(conn, "rm /"+c.MigrationName)
 		if err != nil {
 			return o, err
 		}
+		o += `
+		` + output
 
 	case "k8s":
 		// Create Kubeconfig file
@@ -1241,16 +1267,20 @@ func (m *Repository) destPG(g *dal.Migration, c MigrationCommon) (string, error)
 		}
 
 		// Restore the DB dump on the server
-		err = utils.RunSshCommand(conn, "gunzip < /"+c.MigrationName+" | psql "+uri)
+		output, err := utils.RunSshCommand(conn, "gunzip < /"+c.MigrationName+" | psql "+uri)
 		if err != nil {
 			return o, err
 		}
+		o += `
+		` + output
 
 		// Cleanup the server
-		err = utils.RunSshCommand(conn, "rm /"+c.MigrationName)
+		output, err = utils.RunSshCommand(conn, "rm /"+c.MigrationName)
 		if err != nil {
 			return o, err
 		}
+		o += `
+		` + output
 
 	case "k8s":
 		// Create Kubeconfig file
@@ -1389,16 +1419,20 @@ func (m *Repository) destMongo(g *dal.Migration, c MigrationCommon) (string, err
 		}
 
 		// Restore the DB dump on the server
-		err = utils.RunSshCommand(conn, "mongorestore --uri="+g.DestURI+" --gzip --drop --archive=/"+c.MigrationName)
+		output, err := utils.RunSshCommand(conn, "mongorestore --uri="+g.DestURI+" --gzip --drop --archive=/"+c.MigrationName)
 		if err != nil {
 			return o, err
 		}
+		o += `
+		` + output
 
 		// Cleanup the server
-		err = utils.RunSshCommand(conn, "rm /"+c.MigrationName)
+		output, err = utils.RunSshCommand(conn, "rm /"+c.MigrationName)
 		if err != nil {
 			return o, err
 		}
+		o += `
+		` + output
 
 	case "k8s":
 		// Create Kubeconfig file

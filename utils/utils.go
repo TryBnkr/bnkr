@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"regexp"
 	"runtime/debug"
+	"strings"
 
 	"github.com/MohammedAl-Mahdawi/bnkr/app/dal"
 	"github.com/MohammedAl-Mahdawi/bnkr/app/types"
@@ -714,31 +715,38 @@ func GetSshConn(user string, host string, port string, key string) (*ssh.Client,
 	return conn, nil
 }
 
-func RunSshCommand(conn *ssh.Client, cmd string) error {
+func RunSshCommand(conn *ssh.Client, cmd string) (string, error) {
+	var o string
+	buf := new(strings.Builder)
+
 	sess, err := conn.NewSession()
 	if err != nil {
-		return err
+		return o, err
 	}
 	defer sess.Close()
 	sessStdOut, err := sess.StdoutPipe()
 	if err != nil {
-		return err
+		return o, err
 	}
 
-	// TODO store sessStdOut in variable and return it
-	go io.Copy(os.Stdout, sessStdOut)
 	sessStderr, err := sess.StderrPipe()
 	if err != nil {
-		return err
-	}
-	// TODO store sessStderr in variable and return it
-	go io.Copy(os.Stderr, sessStderr)
-	err = sess.Run(cmd)
-	if err != nil {
-		return err
+		return o, err
 	}
 
-	return nil
+	r := io.MultiReader(sessStdOut, sessStderr)
+	_, err = io.Copy(buf, r)
+	if err != nil {
+		return o, err
+	}
+	o = buf.String()
+
+	err = sess.Run(cmd)
+	if err != nil {
+		return o, err
+	}
+
+	return o, nil
 }
 
 func UploadFileOverSftp(conn *ssh.Client, sFile string, dFile string) (int64, error) {
@@ -766,7 +774,7 @@ func UploadFileOverSftp(conn *ssh.Client, sFile string, dFile string) (int64, er
 	if err != nil {
 		return 0, err
 	}
-	
+
 	return bytes, nil
 }
 
