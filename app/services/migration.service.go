@@ -1498,7 +1498,7 @@ func (m *Repository) destMongo(g *dal.Migration, c MigrationCommon) (string, err
 		}
 
 		// Restore the DB on the pod
-		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "'mongorestore --uri=" + g.DestURI + " --gzip --drop --nsInclude=\"*\" --archive=/" + c.MigrationName+"'"}
+		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "mongorestore --uri=" + g.DestURI + " --gzip --drop --nsInclude=\"*\" --archive=/" + c.MigrationName}
 		cmd = exec.Command("kubectl", args...)
 
 		// DEBUG
