@@ -454,9 +454,6 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 			return "", err
 		}
 
-		// DEBUG
-		fmt.Println("start the run", kubeconfigPath)
-
 		// Create MariaDB helper pod
 		helperPodName := "bnkr-" + guuid.New().String()
 		args := []string{"run", helperPodName, "--kubeconfig", kubeconfigPath, "--restart=Never", "--image", "mariadb:10.5.9-focal", "--command", "--", "sleep", "infinity"}
@@ -466,13 +463,8 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		o += `
 ` + output
 		if err != nil {
-			// DEBUG
-			fmt.Println("check the run", err, output)
 			return o, err
 		}
-
-		// DEBUG
-		fmt.Println("start the wait")
 
 		// Wait for the pod to be ready
 		args = []string{"wait", "--kubeconfig", kubeconfigPath, "--for=condition=ready", "pod", helperPodName}
@@ -482,13 +474,8 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		o += `
 ` + output2
 		if err != nil {
-			// DEBUG
-			fmt.Println("check the wait", err, output2)
 			return o, err
 		}
-
-		// DEBUG
-		fmt.Println("Dump the DB in the pod")
 
 		// Dump the DB in the pod
 		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "mysqldump --no-tablespaces -h " + g.SrcDbHost + " -u " + g.SrcDbUser + " --port=" + g.SrcDbPort + " -p" + g.SrcDbPassword + " " + g.SrcDbName + " | gzip > /" + c.MigrationName}
@@ -498,13 +485,8 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		o += `
 ` + output3
 		if err != nil {
-			// DEBUG
-			fmt.Println("check the dump", err, output3)
 			return o, err
 		}
-
-		// DEBUG
-		fmt.Println("start the cp")
 
 		// Move the DB to Bnkr
 		args = []string{"cp", "--kubeconfig", kubeconfigPath, helperPodName + ":/" + c.MigrationName, c.MigrationName}
@@ -515,13 +497,8 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		o += `
 ` + output4
 		if err != nil {
-			// DEBUG
-			fmt.Println("check the cp", err, output4)
 			return o, err
 		}
-
-		// DEBUG
-		fmt.Println("start the delete")
 
 		// Delete the helper pod
 		args = []string{"delete", "--kubeconfig", kubeconfigPath, "pod", helperPodName, "--ignore-not-found"}
@@ -531,8 +508,6 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		o += `
 ` + output5
 		if err != nil {
-			// DEBUG
-			fmt.Println("check the delete", err, output5)
 			return o, err
 		}
 
@@ -882,60 +857,35 @@ func (m *Repository) srcMongo(g *dal.Migration, c MigrationCommon) (string, erro
 func (m *Repository) srcK8SFiles(g *dal.Migration, c MigrationCommon) (string, error) {
 	var o string
 
-	// DEBUG
-	fmt.Println("from srcK8SFiles")
-
 	kubeconfigPath, err := utils.CreateKubeconfigFile(c.TmpPath, g.SrcKubeconfig, "kubeconfig.yml")
 	if err != nil {
-		// DEBUG
-		fmt.Println("Error creating kubeconfig: ", err)
 		return o, err
 	}
-
-	// DEBUG
-	fmt.Println("kubeconfigPath: ", kubeconfigPath)
 
 	podName := g.SrcPodName
 
 	var args []string
 
 	if g.SrcType != "pod" {
-		// DEBUG
-		fmt.Println("Not pod")
-
 		args = []string{"get", "pod", "--kubeconfig", kubeconfigPath, "-l", g.SrcPodLabel, "-o", "jsonpath={.items[0].metadata.name}"}
 		podNameBytes, err := exec.Command("kubectl", args...).Output()
 		if err != nil {
-			// DEBUG
-			fmt.Println("Error getting pod name: ", err)
 			return o, err
 		}
 
 		podName = string(podNameBytes)
-		// DEBUG
-		fmt.Println("Found pod name: ", podName)
 	}
-
-	// DEBUG
-	fmt.Println("Start creating tarball...")
 
 	// Create tarball inside the deployment container
 	args = []string{"exec", "-c", g.SrcContainer, podName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "tar -czf /" + c.MigrationName + " -C " + g.SrcFilesPath + " ."}
 	cmd := exec.Command("kubectl", args...)
 
 	output, err := utils.CmdExecutor(cmd)
-	// DEBUG
-	fmt.Println("After exec: ", output, err)
 	o += `
 ` + output
 	if err != nil {
-		// DEBUG
-		fmt.Println("Error creating tarball: ", err)
 		return o, err
 	}
-
-	// DEBUG
-	fmt.Println("Start moving the tarball...")
 
 	// Move the tarball to Bnkr
 	args = []string{"cp", "--kubeconfig", kubeconfigPath, podName + ":/" + c.MigrationName, c.MigrationName}
@@ -943,18 +893,11 @@ func (m *Repository) srcK8SFiles(g *dal.Migration, c MigrationCommon) (string, e
 	cmd.Dir = c.TmpPath
 
 	output2, err := utils.CmdExecutor(cmd)
-	// DEBUG
-	fmt.Println("After cp: ", output2, err)
 	o += `
 ` + output2
 	if err != nil {
-		// DEBUG
-		fmt.Println("Oh cp error: ", err)
 		return o, err
 	}
-
-	// DEBUG
-	fmt.Println("Start cleanup...")
 
 	// Cleanup, remove the tarball file from the deployment
 	args = []string{"exec", "--kubeconfig", kubeconfigPath, "-c", g.SrcContainer, podName, "--", "sh", "-c", "rm /" + c.MigrationName}
@@ -962,18 +905,11 @@ func (m *Repository) srcK8SFiles(g *dal.Migration, c MigrationCommon) (string, e
 	cmd.Dir = c.TmpPath
 
 	output3, err := utils.CmdExecutor(cmd)
-	// DEBUG
-	fmt.Println("After exec cleanup: ", output3, err)
 	o += `
 ` + output3
 	if err != nil {
-		// DEBUG
-		fmt.Println("Oh cleanup error: ", err)
 		return o, err
 	}
-
-	// DEBUG
-	fmt.Println("We reached the end!", o)
 
 	return o, nil
 }
@@ -1192,9 +1128,6 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 		// Restore the DB on the pod
 		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "gunzip < /" + c.MigrationName + " | " + "mysql --max_allowed_packet=512M -h " + g.DestDbHost + " -u " + g.DestDbUser + " -p" + g.DestDbPassword + " " + g.DestDbName}
 		cmd = exec.Command("kubectl", args...)
-
-		// DEBUG
-		fmt.Println(cmd.String())
 
 		output4, err := utils.CmdExecutor(cmd)
 		o += `
@@ -1504,9 +1437,6 @@ func (m *Repository) destMongo(g *dal.Migration, c MigrationCommon) (string, err
 		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "mongorestore --uri=" + g.DestURI + " --gzip --drop --nsInclude=\"*\" --archive=/" + c.MigrationName}
 		cmd = exec.Command("kubectl", args...)
 
-		// DEBUG
-		fmt.Println(cmd.String())
-
 		output4, err := utils.CmdExecutor(cmd)
 		o += `
 ` + output4
@@ -1588,8 +1518,6 @@ func (m *Repository) migrate(id int, migration *dal.Migration) error {
 
 	// Files In Deployment or StatefulSet
 	case "object", "pod":
-		// DEBUG
-		fmt.Println("K8S related")
 		srcOut, srcErr = Repo.srcK8SFiles(migration, commons)
 
 	case "s3":
