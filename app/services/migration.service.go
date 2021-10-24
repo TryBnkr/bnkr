@@ -1193,6 +1193,9 @@ func (m *Repository) destDB(g *dal.Migration, c MigrationCommon) (string, error)
 		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "gunzip < /" + c.MigrationName + " | mysql", "--max_allowed_packet=512M", "-h", g.DestDbHost, "-u", g.DestDbUser, "-p" + g.DestDbPassword, g.DestDbName}
 		cmd = exec.Command("kubectl", args...)
 
+		// DEBUG
+		fmt.Println(cmd.String())
+
 		output4, err := utils.CmdExecutor(cmd)
 		o += `
 ` + output4
