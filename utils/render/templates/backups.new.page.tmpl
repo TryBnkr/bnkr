@@ -252,7 +252,7 @@
     <div class="mb-3" x-show="type=='object' || type=='pod'">
         <label for="exampleInputFilesPath1" class="form-label">Files Path</label>
         <input name="filesPath" class="form-control {{if .Form.Errors.Get "filesPath"}} is-invalid {{else if
-            .Form.Has "filesPath" }} is-valid {{end}}" value="{{$res.FilesPath}}" id="exampleInputFilesPath1"
+            .Form.Has "filesPath" }} is-valid {{end}}" placeholder="/var/www/html" value="{{$res.FilesPath}}" id="exampleInputFilesPath1"
             aria-describedby="filesPathHelp">
         {{with .Form.Errors.Get "filesPath"}}
         <div class="invalid-feedback">

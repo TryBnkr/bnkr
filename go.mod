@@ -15,8 +15,9 @@ require (
 	github.com/joho/godotenv v1.3.0
 	github.com/justinas/nosurf v1.1.1
 	github.com/lib/pq v1.10.2 // indirect
+	github.com/pkg/sftp v1.13.4 // indirect
 	github.com/robfig/cron/v3 v3.0.0
 	github.com/xhit/go-simple-mail/v2 v2.9.1
-	golang.org/x/crypto v0.0.0-20210616213533-5ff15b29337e
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 	golang.org/x/net v0.0.0-20210610132358-84b48f89b13b // indirect
 )

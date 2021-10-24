@@ -1,14 +1,23 @@
 package utils
 
 import (
+	"bufio"
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
+	"os"
+	"os/exec"
 	"regexp"
 	"runtime/debug"
 
 	"github.com/MohammedAl-Mahdawi/bnkr/app/dal"
 	"github.com/MohammedAl-Mahdawi/bnkr/app/types"
 	"github.com/MohammedAl-Mahdawi/bnkr/config"
+	"github.com/pkg/sftp"
+	"golang.org/x/crypto/ssh"
 )
 
 var app *config.AppConfig
@@ -539,4 +548,257 @@ func GetOptionValue(o string) string {
 	}
 
 	return option.Value
+}
+
+func GetRequiredMigAccessFields(values *dal.Migration) []string {
+	result := []string{}
+
+	if values.SrcType == "db" || values.SrcType == "pg" || values.SrcType == "mongo" || values.SrcType == "bnkr" {
+		if values.SrcAccess == "k8s" {
+			result = []string{"src_kubeconfig"}
+		}
+
+		if values.SrcAccess == "ssh" {
+			result = []string{"src_ssh_host", "src_ssh_port", "src_ssh_user", "src_ssh_key"}
+		}
+	}
+
+	if values.DestType == "db" || values.DestType == "pg" || values.DestType == "mongo" || values.DestType == "bnkr" {
+		if values.DestAccess == "k8s" {
+			result = append(result, "dest_kubeconfig")
+		}
+
+		if values.DestAccess == "ssh" {
+			result = append(result, "dest_ssh_host", "dest_ssh_port", "dest_ssh_user", "dest_ssh_key")
+		}
+	}
+
+	return result
+}
+
+func GetRequiredMigTypeFields(theType string, itfor string) []string {
+	result := []string{}
+
+	switch theType {
+	case "db":
+		result = []string{itfor + "_db_name", itfor + "_db_user", itfor + "_db_password", itfor + "_db_host", itfor + "_db_port"}
+	case "object":
+		result = []string{itfor + "_pod_label", itfor + "_files_path", itfor + "_container"}
+	case "mongo", "pg":
+		result = []string{itfor + "_uri"}
+	case "pod":
+		result = []string{itfor + "_files_path", itfor + "_container", itfor + "_pod_name"}
+	case "ssh":
+		result = []string{itfor + "_ssh_host", itfor + "_ssh_port", itfor + "_ssh_user", itfor + "_ssh_key"}
+	case "s3":
+		result = []string{itfor + "_bucket", itfor + "_s3_access_key", itfor + "_s3_secret_key", itfor + "_region"}
+		if itfor == "src" {
+			result = append(result, itfor+"_s3_file")
+		}
+	}
+
+	return result
+}
+
+func CreateKubeconfigFile(path string, kubeconfig string, kubeconfigName string) (string, error) {
+	if kubeconfigName == "" {
+		kubeconfigName = "kubeconfig.yml"
+	}
+	kubeconfigPath := path + "/" + kubeconfigName
+	err := ioutil.WriteFile(kubeconfigPath, []byte(kubeconfig), 0600)
+	if err != nil {
+		return "", err
+	}
+
+	return kubeconfigPath, nil
+}
+
+func CreateSSHKeyFile(path string, key string, keyName string) (string, error) {
+	if keyName == "" {
+		keyName = "id_rsa"
+	}
+
+	sshKeyPath := path + "/" + keyName
+	err := ioutil.WriteFile(sshKeyPath, []byte(key), 0600)
+	if err != nil {
+		return "", err
+	}
+
+	return sshKeyPath, nil
+}
+
+func CmdExecutor(cmd *exec.Cmd) (string, error) {
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		app.ErrorLog.Println(err)
+		return err.Error(), err
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		app.ErrorLog.Println(err)
+		return err.Error(), err
+	}
+
+	if err := cmd.Start(); err != nil {
+		app.ErrorLog.Println(err)
+		return err.Error(), err
+	}
+
+	s := bufio.NewScanner(io.MultiReader(stdout, stderr))
+	var co bytes.Buffer
+
+	for s.Scan() {
+		co.Write(s.Bytes())
+		co.Write([]byte("\n"))
+	}
+
+	if err := cmd.Wait(); err != nil {
+		cerr := co.String() + `
+
+		` + err.Error()
+
+		return cerr, err
+	}
+
+	return co.String(), err
+}
+
+func ErrorJSON(w http.ResponseWriter, err error) {
+	type jsonError struct {
+		Message string `json:"message"`
+	}
+
+	theError := jsonError{
+		Message: err.Error(),
+	}
+
+	WriteJSON(w, http.StatusBadRequest, theError, "error")
+}
+
+func WriteJSON(w http.ResponseWriter, status int, data interface{}, wrap string) error {
+	wrapper := make(map[string]interface{})
+
+	wrapper[wrap] = data
+
+	js, err := json.Marshal(wrapper)
+	if err != nil {
+		return err
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	w.Write(js)
+
+	return nil
+}
+
+func GetSshConn(user string, host string, port string, key string) (*ssh.Client, error) {
+	signer, err := ssh.ParsePrivateKey([]byte(key))
+	if err != nil {
+		return nil, err
+	}
+
+	config := &ssh.ClientConfig{
+		User: user,
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	conn, err := ssh.Dial("tcp", host+":"+port, config)
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
+}
+
+func RunSshCommand(conn *ssh.Client, cmd string) (string, error) {
+	var o string
+
+	stdout := new(bytes.Buffer)
+	stderr := new(bytes.Buffer)
+
+	sess, err := conn.NewSession()
+	if err != nil {
+		return o, err
+	}
+	defer sess.Close()
+
+	sess.Stdout = stdout
+	sess.Stderr = stderr
+
+	err = sess.Run(cmd)
+	o += stdout.String() + `
+	` + stderr.String()
+	if err != nil {
+		return o, err
+	}
+
+	return o, nil
+}
+
+func UploadFileOverSftp(conn *ssh.Client, sFile string, dFile string) (int64, error) {
+	client, err := sftp.NewClient(conn)
+	if err != nil {
+		return 0, err
+	}
+	defer client.Close()
+
+	// create destination file
+	dstFile, err := client.Create(dFile)
+	if err != nil {
+		return 0, err
+	}
+	defer dstFile.Close()
+
+	// open source file
+	srcFile, err := os.Open(sFile)
+	if err != nil {
+		return 0, err
+	}
+
+	// copy source file to destination file
+	bytes, err := io.Copy(dstFile, srcFile)
+	if err != nil {
+		return 0, err
+	}
+
+	return bytes, nil
+}
+
+func DownloadFileOverSftp(conn *ssh.Client, sFile string, dFile string) (int64, error) {
+	client, err := sftp.NewClient(conn)
+	if err != nil {
+		return 0, err
+	}
+	defer client.Close()
+
+	// create destination file
+	dstFile, err := os.Create(dFile)
+	if err != nil {
+		return 0, err
+	}
+	defer dstFile.Close()
+
+	// open source file
+	srcFile, err := client.Open(sFile)
+	if err != nil {
+		return 0, err
+	}
+
+	// copy source file to destination file
+	bytes, err := io.Copy(dstFile, srcFile)
+	if err != nil {
+		return 0, err
+	}
+
+	// flush in-memory copy
+	err = dstFile.Sync()
+	if err != nil {
+		return bytes, err
+	}
+
+	return bytes, nil
 }

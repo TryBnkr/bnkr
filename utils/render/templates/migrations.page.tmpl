@@ -1,43 +1,32 @@
 {{template "base" .}}
 
-{{define "head"}}
-<script src="/static/js/cronstrue.min.js"></script>
-{{end}}
-
 {{define "content"}}
-{{$backups := index .Data "backups"}}
-{{$jobs := index .Data "jobs"}}
+{{$migrations := index .Data "migrations"}}
 {{$nextOcc := index .Data "nextOcc"}}
 <input type="hidden" id="csrf_token" name="csrf_token" value="{{.CSRFToken}}">
 <table class="table table-hover align-middle">
   <thead>
     <tr>
       <th scope="col">#</th>
-      <th scope="col">Backup</th>
-      <th scope="col">Frequency</th>
+      <th scope="col">Migration</th>
       <th scope="col">Timezone</th>
-      <th scope="col">Last Backup At</th>
       <th scope="col">Status</th>
       <th scope="col"></th>
     </tr>
   </thead>
   <tbody x-data="tBody()">
-    {{range $backups}}
-    {{$job := getBackupJob . $jobs}}
+    {{range $migrations}}
     <template x-if="!deletedItems.includes({{.ID}})">
       <tr>
-        <th scope="row">{{.ID}}</th>
-        <td><a href="/jobs/backups/{{.ID}}">{{.Name}}</a></td>
-        {{$next := formatDate (index $nextOcc .ID) "2006-01-02T15:04:05-0700"}}
-        {{if eq .Frequency "custom"}}<td data-bs-toggle="tooltip" data-bs-html="true" :title="getTime('{{$next}}')">Custom (<code :title="cronstrue.toString('{{.CustomFrequency}}')">{{.CustomFrequency}}</code>)</td>{{else if eq .Frequency "@hourly"}}<td data-bs-toggle="tooltip" data-bs-html="true" :title="getTime('{{$next}}')">Hourly</td>{{else}}<td data-bs-toggle="tooltip" data-bs-html="true" :title="getTime('{{$next}}')" x-html="cronstrue.toString('{{constructCron .}}')"></td>{{end}}
+        <td scope="row">{{.ID}}</td>
+        <td><a href="/migrations/{{.ID}}/details">{{.Name}}</a></td>
         <td>{{.Timezone}}</td>
-        <td x-text="getTime('{{with $job.Backup}}{{formatDate $job.CreatedAt "2006-01-02T15:04:05-0700"}}{{end}}')"></td>
-        <td>{{with $job.Backup}}{{if eq $job.Status "success"}}<span class="badge rounded-pill bg-success">Success</span>{{else}}<span class="badge rounded-pill bg-danger">Fail</span>{{end}}{{end}}</td>
+        <td>{{if eq .Status.Valid true}}{{if eq .Status.String "success"}}<span class="badge rounded-pill bg-success">Success</span>{{else if eq .Status.String "running"}}<span class="badge rounded-pill bg-primary">Running</span>{{else}}<span class="badge rounded-pill bg-danger">Fail</span>{{end}}{{else}}<span class="badge rounded-pill bg-secondary">Didn't run yet</span>{{end}}</td>
         <td>
-          <button class="btn btn-success btn-sm" type="button" x-on:click="backupNow({{.ID}})"
-            :disabled="backups.includes({{.ID}})" x-text="backups.includes({{.ID}}) ? 'In progress...' : 'Backup'"
-            x-html="backups.includes({{.ID}}) ? spinner : 'Backup Now'"></button>
-          <a href="/backups/{{.ID}}" class="btn btn-secondary btn-sm" title="Edit" role="button">
+          <button class="btn btn-success btn-sm" type="button" x-on:click="migrateNow({{.ID}})"
+            :disabled="migrations.includes({{.ID}})" x-text="migrations.includes({{.ID}}) ? 'In progress...' : 'Migration'"
+            x-html="migrations.includes({{.ID}}) ? spinner : 'Migrate Now'"></button>
+          <a href="/migrations/{{.ID}}" class="btn btn-secondary btn-sm" title="Edit" role="button">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-pencil-fill"
               viewBox="0 0 16 16">
               <path
@@ -47,7 +36,13 @@
           </a>
           <button class="btn btn-info btn-sm text-light" :disabled="clones.length !== 0" x-html="clones.includes({{.ID}}) ? cloneSpinner : cloneIcon" title="Clone" @click="clone({{.ID}})">
           </button>
-          <button class="btn btn-danger btn-sm" title="Delete" @click="deleteBackup({{.ID}})">
+          <!-- <button class="btn btn-warning btn-sm text-light" title="Stop" @click="stopMigration({{.ID}})">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-stoplights" viewBox="0 0 16 16">
+              <path d="M8 5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm0 4a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm1.5 2.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+              <path d="M4 2a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2h2c-.167.5-.8 1.6-2 2v2h2c-.167.5-.8 1.6-2 2v2h2c-.167.5-.8 1.6-2 2v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-1c-1.2-.4-1.833-1.5-2-2h2V8c-1.2-.4-1.833-1.5-2-2h2V4c-1.2-.4-1.833-1.5-2-2h2zm2-1a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H6z"/>
+            </svg>
+          </button> -->
+          <button class="btn btn-danger btn-sm" title="Delete" @click="deleteMigration({{.ID}})">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-x-lg"
               viewBox="0 0 16 16">
               <path
@@ -65,21 +60,21 @@
 <script>
   function tBody() {
     return {
+      init() {
+        this.getMigrations();
+          setInterval(() => {
+            this.getMigrations();
+          }, 3000);
+      },
       spinner: '<span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span> In progress...',
       cloneSpinner: '<span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span>',
       cloneIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-files" viewBox="0 0 16 16"><path d="M13 0H6a2 2 0 0 0-2 2 2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2 2 2 0 0 0 2-2V2a2 2 0 0 0-2-2zm0 13V4a2 2 0 0 0-2-2H5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1zM3 4a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4z"/></svg>',
       deletedItems: [],
       clones: [],
-      backups: [],
-      getTime(d){
-        if (d) {
-          return moment(new Date(d), "YYYYMMDD").fromNow();
-        }
-        return ""
-      },
-      getRunningJobs() {
-        fetch('/json/jobs/running/backups', {
-          method: "post",
+      migrations: [],
+      getMigrations() {
+        fetch('/json/migrations/running', {
+          method: "get",
           headers: {
             'Content-Type': 'application/json',
             'csrf-token': document.getElementById('csrf_token').value,
@@ -90,20 +85,14 @@
           })
           .then(data => {
             if (data.data) {
-              this.backups = data.data
+              this.migrations = data.data;
             } else {
-              this.backups = []
+              this.migrations = []
             }
           })
       },
-      init() {
-        this.getRunningJobs()
-        setInterval(() => {
-          this.getRunningJobs()
-        }, 3000);
-      },
-      backupNow(id) {
-        fetch('/json/jobs/backup/' + id, {
+      migrateNow(id) {
+        fetch('/json/migrations/' + id, {
           method: "post",
           headers: {
             'Content-Type': 'application/json',
@@ -113,8 +102,8 @@
           .then(response => {
             if (response.ok) {
               Swal.fire(
-                'Queued!',
-                'The backup process started successfully, it is happening on the server so feel free to close or leave your browser, you will be notified by email if the backup process succeed or failed.',
+                'Started!',
+                'The migration process started successfully, it is happening on the server so feel free to close or leave your browser, you will be notified by email if the migration process succeed or failed.',
                 'success'
               )
             } else {
@@ -131,7 +120,7 @@
       },
       clone(id) {
         this.clones.push(id);
-        fetch('/json/backups/clone/'+id, {
+        fetch('/json/migrations/clone/'+id, {
           method: "post",
           headers: {
             'Content-Type': 'application/json',
@@ -144,7 +133,7 @@
             }
           })
       },
-      deleteBackup(id) {
+      deleteMigration(id) {
         Swal.fire({
           title: 'Are you sure?',
           text: "You won't be able to revert this!",
@@ -155,7 +144,7 @@
           confirmButtonText: 'Yes, delete it!'
         }).then((result) => {
           if (result.isConfirmed) {
-            fetch('/json/backups/' + id, {
+            fetch('/json/migrations/' + id, {
               method: "delete",
               headers: {
                 'Content-Type': 'application/json',
@@ -174,7 +163,7 @@
 
             Swal.fire(
               'Deleted!',
-              'The backup has been deleted.',
+              'The migration has been deleted.',
               'success'
             )
           }

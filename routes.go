@@ -61,6 +61,16 @@ func routes(app *config.AppConfig) http.Handler {
 		mux.Get("/{id}", services.Repo.GetNewBackup)
 	})
 
+	mux.Route("/migrations", func(mux chi.Router) {
+		mux.Use(pm.Auth)
+		mux.Get("/", services.Repo.GetMigrations)
+		mux.Get("/new", services.Repo.GetNewMigration)
+		mux.Post("/new", services.Repo.PostNewMigration)
+		mux.Post("/{id}", services.Repo.PostNewMigration)
+		mux.Get("/{id}/details", services.Repo.GetMigrationDetails)
+		mux.Get("/{id}", services.Repo.GetNewMigration)
+	})
+
 	mux.Route("/json", func(mux chi.Router) {
 		mux.Use(pm.CsrfVerifier)
 		mux.Use(pm.Auth)
@@ -73,6 +83,10 @@ func routes(app *config.AppConfig) http.Handler {
 		mux.Post("/jobs/running/backups", services.Repo.GetRunningBackups)
 		mux.Post("/jobs/download/{jid}/{bid}", services.Repo.DownloadFile)
 		mux.Post("/jobs/running/{id}", services.Repo.GetRunningJobs)
+		mux.Post("/migrations/{id}", services.Repo.MigrateNow)
+		mux.Post("/migrations/clone/{id}", services.Repo.CloneMigration)
+		mux.Delete("/migrations/{id}", services.Repo.DeleteMigration)
+		mux.Get("/migrations/running", services.Repo.GetRunningMigrations)
 	})
 
 	mux.Get("/", func(rw http.ResponseWriter, r *http.Request) {
