@@ -86,7 +86,7 @@ func routes(app *config.AppConfig) http.Handler {
 		mux.Post("/migrations/{id}", services.Repo.MigrateNow)
 		mux.Post("/migrations/clone/{id}", services.Repo.CloneMigration)
 		mux.Delete("/migrations/{id}", services.Repo.DeleteMigration)
-		mux.Get("/migrations/running", services.Repo.GetRunningMigrations)
+		mux.Get("/migrations/statuses", services.Repo.GetMigrationsStatuses)
 	})
 
 	mux.Get("/", func(rw http.ResponseWriter, r *http.Request) {

@@ -37,22 +37,21 @@ func (m *Repository) GetMigrations(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (m *Repository) GetRunningMigrations(w http.ResponseWriter, r *http.Request) {
+func (m *Repository) GetMigrationsStatuses(w http.ResponseWriter, r *http.Request) {
 	migrations := &[]dal.Migration{}
-	if err := dal.FindAllMigrations(migrations); err != nil {
+	if err := dal.FindMigrationsStatuses(migrations); err != nil {
 		utils.ServerError(w, err)
 		return
 	}
 
-	var migrationsIds []int
+	js := make(map[int]string)
+
 	for _, j := range *migrations {
-		if j.Status.String == "running" {
-			migrationsIds = append(migrationsIds, j.ID)
-		}
+		js[j.ID] = j.Status.String
 	}
 
 	out, _ := json.Marshal(&types.MsgResponse{
-		Data: migrationsIds,
+		Data: js,
 	})
 
 	w.Header().Set("Content-Type", "application/json")
