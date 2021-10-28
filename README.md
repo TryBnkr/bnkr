@@ -1,26 +1,26 @@
 # Bnkr
 
-The Kubernetes backup solution that designed for human beings!
-Bnkr is a height performance backup application written in go.
+The Kubernetes backup & migration solution that designed for human beings!
 
 ## Current Roadmap
 
 - [x] Support MongoDB backup & restore.
 - [ ] Accept kubeconfig
 - [x] Support PostgreSQL backup & restore.
+- [x] Add migrations feature.
 - [ ] Support S3 compilable object storages.
 - [ ] Use Redis for cache and session.
 - [ ] Helm chart.
 
 ## What I can do with Bnkr?
 
-Bnkr goal is to backup only your valuable data inside Kubernetes cluster not the whole cluster, any contribution in this regard is more than welcome.
+Bnkr goal is to backup & migrate only your valuable data inside Kubernetes cluster not the whole cluster, any contribution in this regard is more than welcome.
 
 ## Installation
 
-Bnkr itself is single binary application however it depends on some other tools and applications, like for example it uses `PostgreSQL` to store its data and uses `mysqldump` to backup MySQL databases so it is better to use Bnkr official image because you will guarantee that all the dependencies already exist.
+Bnkr itself is a single binary application however it depends on some other tools and applications, for example, it uses `mysqldump` to backup MySQL databases so it is better to use Bnkr official image because you will guarantee that all the dependencies already exist.
 
-Here I'll mention everything you need to get Bnkr up and running in your cluster but of course you can ignore any part that you already have or you don't need it.
+Here I'll mention everything you need to get Bnkr up and running in your cluster but of course, you can ignore any part that you already have or you don't need it.
 
 First create a service account with:
 

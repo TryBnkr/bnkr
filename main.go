@@ -47,7 +47,7 @@ func main() {
 	session.Cookie.Secure = isProduction
 
 	app.Session = session
-	app.Version = "1.5.3"
+	app.Version = "2.0.0"
 
 	app.Cron = cron.New()
 
