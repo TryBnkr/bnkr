@@ -9,6 +9,7 @@
   <div class="card-body text-dark">
     <ul class="list-group list-group-flush">
       <li class="list-group-item">Name: {{$migration.Name}}</li>
+      <li class="list-group-item">Duration: {{$migration.CompletedAt.Time.Sub $migration.StartedAt.Time}}</li>
     </ul>
   </div>
 </div>

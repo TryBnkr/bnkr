@@ -2,9 +2,11 @@ package dal
 
 import (
 	"database/sql"
+	"strconv"
 	"time"
 
 	"github.com/MohammedAl-Mahdawi/bnkr/config/database"
+	"github.com/MohammedAl-Mahdawi/bnkr/utils/paginator"
 )
 
 type Migration struct {
@@ -89,6 +91,14 @@ func UpdateMigration(data interface{}) (sql.Result, error) {
 
 func FindAllMigrations(dest interface{}) error {
 	return database.DB.Select(dest, "SELECT * FROM migrations ORDER BY id DESC")
+}
+
+func FindMigrations(dest interface{}, order string, p *paginator.Paginator) error {
+	return database.DB.Select(dest, "SELECT * FROM migrations ORDER BY "+order+" LIMIT "+strconv.Itoa(p.PerPage)+" OFFSET "+strconv.Itoa(p.Offset()))
+}
+
+func FindMigrationsStatuses(dest interface{}, order string, p *paginator.Paginator) error {
+	return database.DB.Select(dest, "SELECT id, status FROM migrations ORDER BY "+order+" LIMIT "+strconv.Itoa(p.PerPage)+" OFFSET "+strconv.Itoa(p.Offset()))
 }
 
 func FindMigrationById(dest interface{}, migrationIden interface{}) error {

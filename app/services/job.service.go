@@ -197,7 +197,7 @@ func (m *Repository) GetJobsByBackup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var jobsCount int
-	if err := dal.Count(&jobsCount, "jobs", "backup="+strconv.Itoa(id)); err != nil {
+	if err := dal.Count(&jobsCount, "jobs", " WHERE backup="+strconv.Itoa(id)); err != nil {
 		utils.ServerError(w, err)
 		return
 	}

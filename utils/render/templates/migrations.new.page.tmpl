@@ -113,8 +113,8 @@
                 {{end}}
             </div>
             <div x-show="(src_access=='ssh' && (src_type=='db' || src_type=='mongo' || src_type=='pg' || src_type=='bnkr')) || src_type=='ssh'" class="mb-3">
-                <label for="exampleInputSrcSshUser1" class="form-label">SSH User</label>
-                <input name="src_ssh_user" class="form-control {{if .Form.Errors.Get "src_ssh_user"}} is-invalid {{else if
+                <label for="exampleInputSrcSshUser1" class="form-label">SSH Root User</label>
+                <input name="src_ssh_user" placeholder="root" class="form-control {{if .Form.Errors.Get "src_ssh_user"}} is-invalid {{else if
                     .Form.Has "src_ssh_user" }} is-valid {{end}}" value="{{$res.SrcSshUser}}" id="exampleInputSrcSshUser1"
                     aria-describedby="src_ssh_userHelp">
                 {{with .Form.Errors.Get "src_ssh_user"}}
@@ -377,8 +377,8 @@
                 {{end}}
             </div>
             <div x-show="(dest_access=='ssh' && (dest_type=='db' || dest_type=='mongo' || dest_type=='pg' || dest_type=='bnkr')) || dest_type=='ssh'" class="mb-3">
-                <label for="exampleInputDestSshUser1" class="form-label">SSH User</label>
-                <input name="dest_ssh_user" class="form-control {{if .Form.Errors.Get "dest_ssh_user"}} is-invalid {{else if
+                <label for="exampleInputDestSshUser1" class="form-label">SSH Root User</label>
+                <input name="dest_ssh_user" placeholder="root" class="form-control {{if .Form.Errors.Get "dest_ssh_user"}} is-invalid {{else if
                     .Form.Has "dest_ssh_user" }} is-valid {{end}}" value="{{$res.DestSshUser}}" id="exampleInputDestSshUser1"
                     aria-describedby="dest_ssh_userHelp">
                 {{with .Form.Errors.Get "dest_ssh_user"}}
