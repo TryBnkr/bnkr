@@ -153,39 +153,6 @@ func (m *Repository) GetRunningJobs(w http.ResponseWriter, r *http.Request) {
 	w.Write(out)
 }
 
-func (m *Repository) GetRunningBackups(w http.ResponseWriter, r *http.Request) {
-	backups := &[]types.NewBackupDTO{}
-	if err := dal.FindAllBackups(backups); err != nil {
-		utils.ServerError(w, err)
-		return
-	}
-
-	var backupsIds []int
-	for _, j := range *backups {
-		backupsIds = append(backupsIds, j.ID)
-	}
-
-	queues := &[]dal.Queue{}
-	if len(backupsIds) > 0 {
-		if err := dal.FindQueuesByObjectsIdsAndType(queues, backupsIds, "backup", "created_at desc"); err != nil {
-			utils.ServerError(w, err)
-			return
-		}
-	}
-
-	backupsIds = []int{}
-	for _, j := range *queues {
-		backupsIds = append(backupsIds, j.Object)
-	}
-
-	out, _ := json.Marshal(&types.MsgResponse{
-		Data: backupsIds,
-	})
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(out)
-}
-
 func (m *Repository) GetJobsByBackup(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
 	page, _ := strconv.Atoi(r.URL.Query().Get("p"))

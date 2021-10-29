@@ -2,8 +2,10 @@ package dal
 
 import (
 	"database/sql"
+	"strconv"
 
 	"github.com/MohammedAl-Mahdawi/bnkr/config/database"
+	"github.com/MohammedAl-Mahdawi/bnkr/utils/paginator"
 )
 
 // Backup struct defines the Backup Model
@@ -63,6 +65,10 @@ func FindBackupById(dest interface{}, backupIden interface{}) error {
 
 func FindAllBackups(dest interface{}) error {
 	return database.DB.Select(dest, "SELECT * FROM backups ORDER BY id ASC")
+}
+
+func FindBackups(dest interface{}, order string, p *paginator.Paginator) error {
+	return database.DB.Select(dest, "SELECT * FROM backups ORDER BY "+order+" LIMIT "+strconv.Itoa(p.PerPage)+" OFFSET "+strconv.Itoa(p.Offset()))
 }
 
 func DeleteBackup(backupIden interface{}) (sql.Result, error) {

@@ -8,6 +8,7 @@
 {{$backups := index .Data "backups"}}
 {{$jobs := index .Data "jobs"}}
 {{$nextOcc := index .Data "nextOcc"}}
+{{$pagination := index .Data "pagination"}}
 <input type="hidden" id="csrf_token" name="csrf_token" value="{{.CSRFToken}}">
 <table class="table table-hover align-middle">
   <thead>
@@ -60,8 +61,39 @@
     {{end}}
   </tbody>
 </table>
+{{if gt $pagination.TotalPages 1}}
+<nav class="mt-3" aria-label="Pagination">
+  <ul class="pagination d-flex flex-wrap">
+    <li class="page-item {{if eq $pagination.HasPreviousPage false}}disabled{{end}}">
+      {{if eq $pagination.HasPreviousPage true}}
+      <a class="page-link" href="/backups?p={{$pagination.PreviousPage}}">Previous</a>
+      {{else}}
+      <span class="page-link">Previous</span>
+      {{end}}
+    </li>
+    {{range $page := iterate $pagination.TotalPages}}
+      {{$p := (add $page 1)}}
+      <li class="page-item {{if eq $p $pagination.CurrentPage}}active{{end}}">
+        {{if eq $p $pagination.CurrentPage}}<span class="page-link">{{$p}}</span>{{else}}<a class="page-link" href="/backups?p={{$p}}">{{$p}}</a>{{end}}
+      </li>
+    {{end}}
+    <li class="page-item {{if eq $pagination.HasNextPage false}}disabled{{end}}">
+      {{if eq $pagination.HasNextPage true}}
+      <a class="page-link" href="/backups?p={{$pagination.NextPage}}">Next</a>
+      {{else}}
+      <span class="page-link">Next</span>
+      {{end}}
+    </li>
+  </ul>
+</nav>
+{{end}}
 {{end}}
 {{define "js"}}
+<script>
+  const urlParams = new URLSearchParams(window.location.search);
+  var currentPage = urlParams.get('p');
+  currentPage = currentPage ? parseInt(currentPage) : 1
+</script>
 <script>
   function tBody() {
     return {
@@ -77,9 +109,9 @@
         }
         return ""
       },
-      getRunningJobs() {
-        fetch('/json/jobs/running/backups', {
-          method: "post",
+      getJobs() {
+        fetch('/json/backups/statuses?p='+currentPage, {
+          method: "get",
           headers: {
             'Content-Type': 'application/json',
             'csrf-token': document.getElementById('csrf_token').value,
@@ -89,17 +121,18 @@
             return response.json();
           })
           .then(data => {
-            if (data.data) {
-              this.backups = data.data
-            } else {
-              this.backups = []
-            }
+            console.log(data);
+            // if (data.data) {
+            //   this.backups = data.data
+            // } else {
+            //   this.backups = []
+            // }
           })
       },
       init() {
-        this.getRunningJobs()
+        this.getJobs()
         setInterval(() => {
-          this.getRunningJobs()
+          this.getJobs()
         }, 3000);
       },
       backupNow(id) {
