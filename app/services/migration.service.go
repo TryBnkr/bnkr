@@ -17,29 +17,68 @@ import (
 	"github.com/MohammedAl-Mahdawi/bnkr/app/types"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/forms"
+	"github.com/MohammedAl-Mahdawi/bnkr/utils/paginator"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/render"
 	"github.com/go-chi/chi/v5"
 	guuid "github.com/google/uuid"
 )
 
 func (m *Repository) GetMigrations(w http.ResponseWriter, r *http.Request) {
-	// Get all migrations
+	page, _ := strconv.Atoi(r.URL.Query().Get("p"))
+
+	var migrationsCount int
+	if err := dal.Count(&migrationsCount, "migrations", ""); err != nil {
+		utils.ServerError(w, err)
+		return
+	}
+
+	cp := 1
+	if page > 1 {
+		cp = page
+	}
+
+	p := &paginator.Paginator{
+		CurrentPage: cp,
+		PerPage:     1,
+		TotalCount:  migrationsCount,
+	}
+
 	migrations := &[]dal.Migration{}
-	if err := dal.FindAllMigrations(migrations); err != nil {
+	if err := dal.FindMigrations(migrations, "created_at desc", p); err != nil {
 		utils.ServerError(w, err)
 		return
 	}
 
 	data := make(map[string]interface{})
 	data["migrations"] = migrations
+	data["pagination"] = p
 	render.Template(w, r, "migrations.page.tmpl", &types.TemplateData{
 		Data: data,
 	})
 }
 
 func (m *Repository) GetMigrationsStatuses(w http.ResponseWriter, r *http.Request) {
+	page, _ := strconv.Atoi(r.URL.Query().Get("p"))
+
+	var migrationsCount int
+	if err := dal.Count(&migrationsCount, "migrations", ""); err != nil {
+		utils.ServerError(w, err)
+		return
+	}
+
+	cp := 1
+	if page > 1 {
+		cp = page
+	}
+
+	p := &paginator.Paginator{
+		CurrentPage: cp,
+		PerPage:     1,
+		TotalCount:  migrationsCount,
+	}
+
 	migrations := &[]dal.Migration{}
-	if err := dal.FindMigrationsStatuses(migrations); err != nil {
+	if err := dal.FindMigrationsStatuses(migrations, "created_at desc", p); err != nil {
 		utils.ServerError(w, err)
 		return
 	}
