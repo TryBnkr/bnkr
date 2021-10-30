@@ -30,7 +30,7 @@
         <th scope="row">{{.ID}}</th>
         <td><a href="/jobs/backups/{{.ID}}">{{.Name}}</a></td>
         {{$next := formatDate (index $nextOcc .ID) "2006-01-02T15:04:05-0700"}}
-        {{if eq .Frequency "custom"}}<td data-bs-toggle="tooltip" data-bs-html="true" :title="getTime('{{$next}}')">Custom (<code :title="cronstrue.toString('{{.CustomFrequency}}')">{{.CustomFrequency}}</code>)</td>{{else if eq .Frequency "@hourly"}}<td data-bs-toggle="tooltip" data-bs-html="true" :title="getTime('{{$next}}')">Hourly</td>{{else}}<td data-bs-toggle="tooltip" data-bs-html="true" :title="getTime('{{$next}}')" x-html="cronstrue.toString('{{constructCron .}}')"></td>{{end}}
+        {{if eq .Frequency "custom"}}<td data-bs-toggle="tooltip" :data-bs-original-title="getNextOccurrence('{{$next}}', {{.ID}})" :title="getTime('{{$next}}')">Custom (<code :title="cronstrue.toString('{{.CustomFrequency}}')">{{.CustomFrequency}}</code>)</td>{{else if eq .Frequency "@hourly"}}<td data-bs-toggle="tooltip" :data-bs-original-title="getNextOccurrence('{{$next}}', {{.ID}})" :title="getTime('{{$next}}')">Hourly</td>{{else}}<td data-bs-toggle="tooltip" :data-bs-original-title="getNextOccurrence('{{$next}}', {{.ID}})" :title="getTime('{{$next}}')" x-html="cronstrue.toString('{{constructCron .}}')"></td>{{end}}
         <td>{{.Timezone}}</td>
         <td x-text="getLastBackup('{{with $job.Backup}}{{formatDate $job.CreatedAt "2006-01-02T15:04:05-0700"}}{{end}}', {{.ID}})"></td>
         <td x-html="getStatus({{.ID}})"></td>
@@ -104,6 +104,7 @@
       clones: [],
       backups: [],
       backupsInfo: [],
+      nextOcc: {},
       getLastBackup(_default, backupId){
         let backup = this.backupsInfo.find( b => b.Backup==backupId );
         if (backup) {
@@ -111,6 +112,12 @@
         } else {
           return this.getTime(_default);
         }
+      },
+      getNextOccurrence(_default, id){
+        if (this.nextOcc.hasOwnProperty(id)) {
+          return this.getTime(this.nextOcc[id])
+        }
+        return this.getTime(_default)
       },
       getTime(d){
         if (d) {
@@ -133,9 +140,11 @@
             if (data.data) {
               this.backups = data.data.RunningBackups
               this.backupsInfo = data.data.BackupsInfo
+              this.nextOcc = data.data.NextOcc
             } else {
               this.backups = []
               this.backupsInfo = []
+              this.nextOcc = {}
             }
           })
       },

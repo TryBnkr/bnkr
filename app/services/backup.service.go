@@ -122,6 +122,12 @@ func (m *Repository) GetBackupsStatuses(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
+	ce := make(map[int]time.Time)
+	for _, v := range backupsIds {
+		entryId := m.App.CronIds[v]
+		ce[v] = m.App.Cron.Entry(entryId).Next
+	}
+
 	queues := &[]dal.Queue{}
 	if len(backupsIds) > 0 {
 		if err := dal.FindQueuesByObjectsIdsAndType(queues, backupsIds, "backup", "created_at desc"); err != nil {
@@ -136,10 +142,12 @@ func (m *Repository) GetBackupsStatuses(w http.ResponseWriter, r *http.Request) 
 	}
 
 	utils.WriteJSON(w, http.StatusOK, struct {
-		RunningBackups []int `json:"RunningBackups"`
-		BackupsInfo    []types.SmallJob `json:"BackupsInfo"`
+		RunningBackups []int             `json:"RunningBackups"`
+		NextOcc        map[int]time.Time `json:"NextOcc"`
+		BackupsInfo    []types.SmallJob  `json:"BackupsInfo"`
 	}{
 		RunningBackups: backupsIds,
+		NextOcc:        ce,
 		BackupsInfo:    jobs,
 	}, "data")
 }
