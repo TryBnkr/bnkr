@@ -32,8 +32,8 @@
         {{$next := formatDate (index $nextOcc .ID) "2006-01-02T15:04:05-0700"}}
         {{if eq .Frequency "custom"}}<td data-bs-toggle="tooltip" data-bs-html="true" :title="getTime('{{$next}}')">Custom (<code :title="cronstrue.toString('{{.CustomFrequency}}')">{{.CustomFrequency}}</code>)</td>{{else if eq .Frequency "@hourly"}}<td data-bs-toggle="tooltip" data-bs-html="true" :title="getTime('{{$next}}')">Hourly</td>{{else}}<td data-bs-toggle="tooltip" data-bs-html="true" :title="getTime('{{$next}}')" x-html="cronstrue.toString('{{constructCron .}}')"></td>{{end}}
         <td>{{.Timezone}}</td>
-        <td x-text="getTime('{{with $job.Backup}}{{formatDate $job.CreatedAt "2006-01-02T15:04:05-0700"}}{{end}}')"></td>
-        <td>{{with $job.Backup}}{{if eq $job.Status "success"}}<span class="badge rounded-pill bg-success">Success</span>{{else}}<span class="badge rounded-pill bg-danger">Fail</span>{{end}}{{end}}</td>
+        <td x-text="getLastBackup('{{with $job.Backup}}{{formatDate $job.CreatedAt "2006-01-02T15:04:05-0700"}}{{end}}', {{.ID}})"></td>
+        <td x-html="getStatus({{.ID}})"></td>
         <td>
           <button class="btn btn-success btn-sm" type="button" x-on:click="backupNow({{.ID}})"
             :disabled="backups.includes({{.ID}})" x-text="backups.includes({{.ID}}) ? 'In progress...' : 'Backup'"
@@ -103,6 +103,15 @@
       deletedItems: [],
       clones: [],
       backups: [],
+      backupsInfo: [],
+      getLastBackup(_default, backupId){
+        let backup = this.backupsInfo.find( b => b.Backup==backupId );
+        if (backup) {
+          return this.getTime(backup.CreatedAt);
+        } else {
+          return this.getTime(_default);
+        }
+      },
       getTime(d){
         if (d) {
           return moment(new Date(d), "YYYYMMDD").fromNow();
@@ -121,12 +130,13 @@
             return response.json();
           })
           .then(data => {
-            console.log(data);
-            // if (data.data) {
-            //   this.backups = data.data
-            // } else {
-            //   this.backups = []
-            // }
+            if (data.data) {
+              this.backups = data.data.RunningBackups
+              this.backupsInfo = data.data.BackupsInfo
+            } else {
+              this.backups = []
+              this.backupsInfo = []
+            }
           })
       },
       init() {
@@ -134,6 +144,14 @@
         setInterval(() => {
           this.getJobs()
         }, 3000);
+      },
+      getStatus(id) {
+        let backup = this.backupsInfo.find( b => b.Backup==id );
+        if (backup) {
+          return window.getFormattedStatus(backup, backup.Status);
+        } else {
+          return window.getFormattedStatus(true, null);
+        }
       },
       backupNow(id) {
         fetch('/json/jobs/backup/' + id, {

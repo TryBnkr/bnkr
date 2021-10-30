@@ -35,7 +35,7 @@ func (m *Repository) GetBackups(w http.ResponseWriter, r *http.Request) {
 
 	p := &paginator.Paginator{
 		CurrentPage: cp,
-		PerPage:     1,
+		PerPage:     20,
 		TotalCount:  backupsCount,
 	}
 
@@ -96,7 +96,7 @@ func (m *Repository) GetBackupsStatuses(w http.ResponseWriter, r *http.Request) 
 
 	p := &paginator.Paginator{
 		CurrentPage: cp,
-		PerPage:     1,
+		PerPage:     20,
 		TotalCount:  backupsCount,
 	}
 
@@ -136,11 +136,11 @@ func (m *Repository) GetBackupsStatuses(w http.ResponseWriter, r *http.Request) 
 	}
 
 	utils.WriteJSON(w, http.StatusOK, struct {
-		RunningBackups []int
-		BackupsJobs    []types.SmallJob
+		RunningBackups []int `json:"RunningBackups"`
+		BackupsInfo    []types.SmallJob `json:"BackupsInfo"`
 	}{
 		RunningBackups: backupsIds,
-		BackupsJobs:    jobs,
+		BackupsInfo:    jobs,
 	}, "data")
 }
 
