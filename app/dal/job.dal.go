@@ -5,8 +5,10 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/MohammedAl-Mahdawi/bnkr/app/types"
 	"github.com/MohammedAl-Mahdawi/bnkr/config/database"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/paginator"
+	"github.com/jmoiron/sqlx"
 )
 
 // Job struct defines the Job Model
@@ -40,16 +42,49 @@ func SelectPaginatedJobsByBackup(dest interface{}, backupIden interface{}, order
 	return database.DB.Select(dest, "SELECT * FROM jobs WHERE backup=$1 ORDER BY "+order, backupIden)
 }
 
-func SelectLatestJobForEachBackup(dest interface{}) error {
-	return database.DB.Select(dest, `
+func SelectLatestJobForEachBackup(backupsIds []int) ([]types.SmallJob, error) {
+	dest := []types.SmallJob{}
+	
+	query, args, err := sqlx.In(`
 	SELECT m.backup,ca,m.status FROM (
 		SELECT
 			backup, MAX(created_at) AS ca
 		FROM
 			jobs 
+Where backup in (?)
 		GROUP BY
 			backup) t join jobs m on t.backup = m.backup and t.ca = m.created_at;
-	`)
+		`, backupsIds)
+
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := database.DB.Query(database.DB.Rebind(query), args...)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var CreatedAt time.Time
+		var Bakup int
+		var Status string
+
+		err = rows.Scan(&Bakup, &CreatedAt, &Status)
+		if err != nil {
+			return nil, err
+		}
+		dest = append(dest, types.SmallJob{
+			CreatedAt: CreatedAt,
+			Backup:    Bakup,
+			Status:    Status,
+		})
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return dest, nil
 }
 
 func FindJobsIDByBackup(dest interface{}, backupIden interface{}, order string) error {

@@ -11,6 +11,7 @@ import (
 	"github.com/MohammedAl-Mahdawi/bnkr/app/types"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/forms"
+	"github.com/MohammedAl-Mahdawi/bnkr/utils/paginator"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/password"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/render"
 
@@ -19,14 +20,34 @@ import (
 
 // GetUsers returns the users list
 func (m *Repository) GetUsers(w http.ResponseWriter, r *http.Request) {
+	page, _ := strconv.Atoi(r.URL.Query().Get("p"))
+
+	var usersCount int
+	if err := dal.Count(&usersCount, "users", ""); err != nil {
+		utils.ServerError(w, err)
+		return
+	}
+
+	cp := 1
+	if page > 1 {
+		cp = page
+	}
+
+	p := &paginator.Paginator{
+		CurrentPage: cp,
+		PerPage:     20,
+		TotalCount:  usersCount,
+	}
+
 	users := &[]types.NewUserDTO{}
-	if err := dal.FindAllUsers(users); err != nil {
+	if err := dal.FindUsers(users, "created_at desc", p); err != nil {
 		utils.ServerError(w, err)
 		return
 	}
 
 	data := make(map[string]interface{})
 	data["users"] = users
+	data["pagination"] = p
 	render.Template(w, r, "users.page.tmpl", &types.TemplateData{
 		Data: data,
 	})

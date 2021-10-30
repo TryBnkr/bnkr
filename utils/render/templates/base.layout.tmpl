@@ -127,6 +127,32 @@
   </script>
   {{end}}
 
+  <script>
+    window.getFormattedStatus = (_loaded, _status) => {
+      if (_loaded){
+          switch (_status) {
+            case 'success':
+              return '<span class="badge rounded-pill bg-success">Success</span>'
+              break;
+
+            case 'running':
+              return '<span class="badge rounded-pill bg-primary">Running</span>'
+              break;
+
+            case 'fail':
+              return '<span class="badge rounded-pill bg-danger">Fail</span>'
+              break;
+          
+            default:
+              return '<span class="badge rounded-pill bg-secondary">Didn\'t run yet</span>';
+              break;
+          }
+        } else {
+          return '<span class="badge rounded-pill bg-secondary">Checking...</span>';
+        }
+    }
+  </script>
+
   {{block "js" .}}
 
   {{end}}

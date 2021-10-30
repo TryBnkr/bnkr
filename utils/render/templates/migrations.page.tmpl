@@ -123,6 +123,11 @@
           })
       },
       getStatus(id) {
+        if (this.migrations.hasOwnProperty(id)) {
+          return window.getFormattedStatus(this.migrations.hasOwnProperty(id), this.migrations[id]);
+        } else {
+          return window.getFormattedStatus(this.migrations.hasOwnProperty(id), null);
+        }
         if (this.migrations.hasOwnProperty(id)){
           switch (this.migrations[id]) {
             case 'success':

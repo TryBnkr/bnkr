@@ -2,9 +2,11 @@ package dal
 
 import (
 	"database/sql"
+	"strconv"
 	"time"
 
 	"github.com/MohammedAl-Mahdawi/bnkr/config/database"
+	"github.com/MohammedAl-Mahdawi/bnkr/utils/paginator"
 )
 
 // User struct defines the user
@@ -41,6 +43,10 @@ func DeleteUser(userIden interface{}) (sql.Result, error) {
 
 func FindAllUsers(dest interface{}) error {
 	return database.DB.Select(dest, "SELECT * FROM users")
+}
+
+func FindUsers(dest interface{}, order string, p *paginator.Paginator) error {
+	return database.DB.Select(dest, "SELECT * FROM users ORDER BY "+order+" LIMIT "+strconv.Itoa(p.PerPage)+" OFFSET "+strconv.Itoa(p.Offset()))
 }
 
 func UpdateUser(data *User) (sql.Result, error) {

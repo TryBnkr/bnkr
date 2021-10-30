@@ -12,6 +12,7 @@ import (
 	"github.com/MohammedAl-Mahdawi/bnkr/app/types"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/forms"
+	"github.com/MohammedAl-Mahdawi/bnkr/utils/paginator"
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/render"
 
 	"github.com/go-chi/chi/v5"
@@ -19,16 +20,46 @@ import (
 
 // GetBackups returns the backups list
 func (m *Repository) GetBackups(w http.ResponseWriter, r *http.Request) {
-	// Get all backups
-	backups := &[]types.NewBackupDTO{}
-	if err := dal.FindAllBackups(backups); err != nil {
+	page, _ := strconv.Atoi(r.URL.Query().Get("p"))
+
+	var backupsCount int
+	if err := dal.Count(&backupsCount, "backups", ""); err != nil {
 		utils.ServerError(w, err)
 		return
 	}
 
+	cp := 1
+	if page > 1 {
+		cp = page
+	}
+
+	p := &paginator.Paginator{
+		CurrentPage: cp,
+		PerPage:     20,
+		TotalCount:  backupsCount,
+	}
+
+	backups := &[]types.NewBackupDTO{}
+	if err := dal.FindBackups(backups, "created_at desc", p); err != nil {
+		utils.ServerError(w, err)
+		return
+	}
+
+	backupsIds := []int{}
+	for _, b := range *backups {
+		backupsIds = append(backupsIds, b.ID)
+	}
+
 	// Get latest job foreach backup
 	var jobs []types.SmallJob
-	dal.SelectLatestJobForEachBackup(&jobs)
+	if len(backupsIds) > 0 {
+		var err error
+		jobs, err = dal.SelectLatestJobForEachBackup(backupsIds)
+		if err != nil {
+			utils.ServerError(w, err)
+			return
+		}
+	}
 
 	ce := make(map[int]time.Time)
 	for _, e := range m.App.Cron.Entries() {
@@ -43,9 +74,82 @@ func (m *Repository) GetBackups(w http.ResponseWriter, r *http.Request) {
 	data["backups"] = backups
 	data["jobs"] = jobs
 	data["nextOcc"] = ce
+	data["pagination"] = p
 	render.Template(w, r, "backups.page.tmpl", &types.TemplateData{
 		Data: data,
 	})
+}
+
+func (m *Repository) GetBackupsStatuses(w http.ResponseWriter, r *http.Request) {
+	page, _ := strconv.Atoi(r.URL.Query().Get("p"))
+
+	var backupsCount int
+	if err := dal.Count(&backupsCount, "backups", ""); err != nil {
+		utils.ServerError(w, err)
+		return
+	}
+
+	cp := 1
+	if page > 1 {
+		cp = page
+	}
+
+	p := &paginator.Paginator{
+		CurrentPage: cp,
+		PerPage:     20,
+		TotalCount:  backupsCount,
+	}
+
+	backups := &[]types.NewBackupDTO{}
+	if err := dal.FindBackups(backups, "created_at desc", p); err != nil {
+		utils.ServerError(w, err)
+		return
+	}
+
+	var backupsIds []int
+	for _, j := range *backups {
+		backupsIds = append(backupsIds, j.ID)
+	}
+
+	// Get latest job foreach backup
+	var jobs []types.SmallJob
+	if len(backupsIds) > 0 {
+		var err error
+		jobs, err = dal.SelectLatestJobForEachBackup(backupsIds)
+		if err != nil {
+			utils.ServerError(w, err)
+			return
+		}
+	}
+
+	ce := make(map[int]time.Time)
+	for _, v := range backupsIds {
+		entryId := m.App.CronIds[v]
+		ce[v] = m.App.Cron.Entry(entryId).Next
+	}
+
+	queues := &[]dal.Queue{}
+	if len(backupsIds) > 0 {
+		if err := dal.FindQueuesByObjectsIdsAndType(queues, backupsIds, "backup", "created_at desc"); err != nil {
+			utils.ServerError(w, err)
+			return
+		}
+	}
+
+	backupsIds = []int{}
+	for _, j := range *queues {
+		backupsIds = append(backupsIds, j.Object)
+	}
+
+	utils.WriteJSON(w, http.StatusOK, struct {
+		RunningBackups []int             `json:"RunningBackups"`
+		NextOcc        map[int]time.Time `json:"NextOcc"`
+		BackupsInfo    []types.SmallJob  `json:"BackupsInfo"`
+	}{
+		RunningBackups: backupsIds,
+		NextOcc:        ce,
+		BackupsInfo:    jobs,
+	}, "data")
 }
 
 func (m *Repository) CloneBackup(w http.ResponseWriter, r *http.Request) {

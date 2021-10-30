@@ -39,7 +39,7 @@ func (m *Repository) GetMigrations(w http.ResponseWriter, r *http.Request) {
 
 	p := &paginator.Paginator{
 		CurrentPage: cp,
-		PerPage:     1,
+		PerPage:     20,
 		TotalCount:  migrationsCount,
 	}
 
@@ -73,7 +73,7 @@ func (m *Repository) GetMigrationsStatuses(w http.ResponseWriter, r *http.Reques
 
 	p := &paginator.Paginator{
 		CurrentPage: cp,
-		PerPage:     1,
+		PerPage:     20,
 		TotalCount:  migrationsCount,
 	}
 

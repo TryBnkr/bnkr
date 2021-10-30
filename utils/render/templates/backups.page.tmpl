@@ -8,6 +8,7 @@
 {{$backups := index .Data "backups"}}
 {{$jobs := index .Data "jobs"}}
 {{$nextOcc := index .Data "nextOcc"}}
+{{$pagination := index .Data "pagination"}}
 <input type="hidden" id="csrf_token" name="csrf_token" value="{{.CSRFToken}}">
 <table class="table table-hover align-middle">
   <thead>
@@ -29,10 +30,10 @@
         <th scope="row">{{.ID}}</th>
         <td><a href="/jobs/backups/{{.ID}}">{{.Name}}</a></td>
         {{$next := formatDate (index $nextOcc .ID) "2006-01-02T15:04:05-0700"}}
-        {{if eq .Frequency "custom"}}<td data-bs-toggle="tooltip" data-bs-html="true" :title="getTime('{{$next}}')">Custom (<code :title="cronstrue.toString('{{.CustomFrequency}}')">{{.CustomFrequency}}</code>)</td>{{else if eq .Frequency "@hourly"}}<td data-bs-toggle="tooltip" data-bs-html="true" :title="getTime('{{$next}}')">Hourly</td>{{else}}<td data-bs-toggle="tooltip" data-bs-html="true" :title="getTime('{{$next}}')" x-html="cronstrue.toString('{{constructCron .}}')"></td>{{end}}
+        {{if eq .Frequency "custom"}}<td data-bs-toggle="tooltip" :data-bs-original-title="getNextOccurrence('{{$next}}', {{.ID}})" :title="getTime('{{$next}}')">Custom (<code :title="cronstrue.toString('{{.CustomFrequency}}')">{{.CustomFrequency}}</code>)</td>{{else if eq .Frequency "@hourly"}}<td data-bs-toggle="tooltip" :data-bs-original-title="getNextOccurrence('{{$next}}', {{.ID}})" :title="getTime('{{$next}}')">Hourly</td>{{else}}<td data-bs-toggle="tooltip" :data-bs-original-title="getNextOccurrence('{{$next}}', {{.ID}})" :title="getTime('{{$next}}')" x-html="cronstrue.toString('{{constructCron .}}')"></td>{{end}}
         <td>{{.Timezone}}</td>
-        <td x-text="getTime('{{with $job.Backup}}{{formatDate $job.CreatedAt "2006-01-02T15:04:05-0700"}}{{end}}')"></td>
-        <td>{{with $job.Backup}}{{if eq $job.Status "success"}}<span class="badge rounded-pill bg-success">Success</span>{{else}}<span class="badge rounded-pill bg-danger">Fail</span>{{end}}{{end}}</td>
+        <td x-text="getLastBackup('{{with $job.Backup}}{{formatDate $job.CreatedAt "2006-01-02T15:04:05-0700"}}{{end}}', {{.ID}})"></td>
+        <td x-html="getStatus({{.ID}})"></td>
         <td>
           <button class="btn btn-success btn-sm" type="button" x-on:click="backupNow({{.ID}})"
             :disabled="backups.includes({{.ID}})" x-text="backups.includes({{.ID}}) ? 'In progress...' : 'Backup'"
@@ -60,8 +61,39 @@
     {{end}}
   </tbody>
 </table>
+{{if gt $pagination.TotalPages 1}}
+<nav class="mt-3" aria-label="Pagination">
+  <ul class="pagination d-flex flex-wrap">
+    <li class="page-item {{if eq $pagination.HasPreviousPage false}}disabled{{end}}">
+      {{if eq $pagination.HasPreviousPage true}}
+      <a class="page-link" href="/backups?p={{$pagination.PreviousPage}}">Previous</a>
+      {{else}}
+      <span class="page-link">Previous</span>
+      {{end}}
+    </li>
+    {{range $page := iterate $pagination.TotalPages}}
+      {{$p := (add $page 1)}}
+      <li class="page-item {{if eq $p $pagination.CurrentPage}}active{{end}}">
+        {{if eq $p $pagination.CurrentPage}}<span class="page-link">{{$p}}</span>{{else}}<a class="page-link" href="/backups?p={{$p}}">{{$p}}</a>{{end}}
+      </li>
+    {{end}}
+    <li class="page-item {{if eq $pagination.HasNextPage false}}disabled{{end}}">
+      {{if eq $pagination.HasNextPage true}}
+      <a class="page-link" href="/backups?p={{$pagination.NextPage}}">Next</a>
+      {{else}}
+      <span class="page-link">Next</span>
+      {{end}}
+    </li>
+  </ul>
+</nav>
+{{end}}
 {{end}}
 {{define "js"}}
+<script>
+  const urlParams = new URLSearchParams(window.location.search);
+  var currentPage = urlParams.get('p');
+  currentPage = currentPage ? parseInt(currentPage) : 1
+</script>
 <script>
   function tBody() {
     return {
@@ -71,15 +103,31 @@
       deletedItems: [],
       clones: [],
       backups: [],
+      backupsInfo: [],
+      nextOcc: {},
+      getLastBackup(_default, backupId){
+        let backup = this.backupsInfo.find( b => b.Backup==backupId );
+        if (backup) {
+          return this.getTime(backup.CreatedAt);
+        } else {
+          return this.getTime(_default);
+        }
+      },
+      getNextOccurrence(_default, id){
+        if (this.nextOcc.hasOwnProperty(id)) {
+          return this.getTime(this.nextOcc[id])
+        }
+        return this.getTime(_default)
+      },
       getTime(d){
         if (d) {
           return moment(new Date(d), "YYYYMMDD").fromNow();
         }
         return ""
       },
-      getRunningJobs() {
-        fetch('/json/jobs/running/backups', {
-          method: "post",
+      getJobs() {
+        fetch('/json/backups/statuses?p='+currentPage, {
+          method: "get",
           headers: {
             'Content-Type': 'application/json',
             'csrf-token': document.getElementById('csrf_token').value,
@@ -90,17 +138,29 @@
           })
           .then(data => {
             if (data.data) {
-              this.backups = data.data
+              this.backups = data.data.RunningBackups
+              this.backupsInfo = data.data.BackupsInfo
+              this.nextOcc = data.data.NextOcc
             } else {
               this.backups = []
+              this.backupsInfo = []
+              this.nextOcc = {}
             }
           })
       },
       init() {
-        this.getRunningJobs()
+        this.getJobs()
         setInterval(() => {
-          this.getRunningJobs()
+          this.getJobs()
         }, 3000);
+      },
+      getStatus(id) {
+        let backup = this.backupsInfo.find( b => b.Backup==id );
+        if (backup) {
+          return window.getFormattedStatus(backup, backup.Status);
+        } else {
+          return window.getFormattedStatus(true, null);
+        }
       },
       backupNow(id) {
         fetch('/json/jobs/backup/' + id, {
