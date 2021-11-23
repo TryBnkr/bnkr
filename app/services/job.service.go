@@ -674,7 +674,7 @@ func (m *Repository) DbBackup(b *types.NewBackupDTO, sendMail bool) (*dal.Job, e
 	}
 	defer outfile.Close()
 
-	args := []string{"-h", b.DbHost, "-u", b.DbUser, "--port=" + b.DbPort, "-p" + b.DbPassword, b.DbName}
+	args := []string{"--max_allowed_packet=512M", "-h", b.DbHost, "-u", b.DbUser, "--port=" + b.DbPort, "-p" + b.DbPassword, b.DbName}
 	mysqldump := exec.Command("mysqldump", args...)
 
 	mysqldump.Stderr = os.Stderr
