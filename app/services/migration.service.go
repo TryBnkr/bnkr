@@ -459,7 +459,7 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		defer conn.Close()
 
 		// Create the DB dump on the server
-		output, err := utils.RunSshCommand(conn, "mysqldump --max_allowed_packet=512M --no-tablespaces -h "+g.SrcDbHost+" -u "+g.SrcDbUser+" --port="+g.SrcDbPort+" -p"+g.SrcDbPassword+" "+g.SrcDbName+" | gzip > /"+c.MigrationName)
+		output, err := utils.RunSshCommand(conn, "mysqldump --single-transaction --quick --max_allowed_packet=512M --no-tablespaces -h "+g.SrcDbHost+" -u "+g.SrcDbUser+" --port="+g.SrcDbPort+" -p"+g.SrcDbPassword+" "+g.SrcDbName+" | gzip > /"+c.MigrationName)
 
 		if err != nil {
 			return o, err
@@ -516,7 +516,7 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		}
 
 		// Dump the DB in the pod
-		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "mysqldump --max_allowed_packet=512M --no-tablespaces -h " + g.SrcDbHost + " -u " + g.SrcDbUser + " --port=" + g.SrcDbPort + " -p" + g.SrcDbPassword + " " + g.SrcDbName + " | gzip > /" + c.MigrationName}
+		args = []string{"exec", helperPodName, "--kubeconfig", kubeconfigPath, "--", "sh", "-c", "mysqldump --single-transaction --quick --max_allowed_packet=512M --no-tablespaces -h " + g.SrcDbHost + " -u " + g.SrcDbUser + " --port=" + g.SrcDbPort + " -p" + g.SrcDbPassword + " " + g.SrcDbName + " | gzip > /" + c.MigrationName}
 		cmd = exec.Command("kubectl", args...)
 
 		output3, err := utils.CmdExecutor(cmd)
@@ -557,7 +557,7 @@ func (m *Repository) srcDB(g *dal.Migration, c MigrationCommon) (string, error) 
 		}
 		defer outfile.Close()
 
-		args := []string{"--max_allowed_packet=512M", "--no-tablespaces", "-h", g.SrcDbHost, "-u", g.SrcDbUser, "--port=" + g.SrcDbPort, "-p" + g.SrcDbPassword, g.SrcDbName}
+		args := []string{"--single-transaction", "--quick", "--max_allowed_packet=512M", "--no-tablespaces", "-h", g.SrcDbHost, "-u", g.SrcDbUser, "--port=" + g.SrcDbPort, "-p" + g.SrcDbPassword, g.SrcDbName}
 		mysqldump := exec.Command("mysqldump", args...)
 
 		mysqldump.Stderr = os.Stderr
