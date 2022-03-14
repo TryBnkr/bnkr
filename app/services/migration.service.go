@@ -21,6 +21,7 @@ import (
 	"github.com/MohammedAl-Mahdawi/bnkr/utils/render"
 	"github.com/go-chi/chi/v5"
 	guuid "github.com/google/uuid"
+	"golang.org/x/crypto/ssh"
 )
 
 func (m *Repository) GetMigrations(w http.ResponseWriter, r *http.Request) {
@@ -922,7 +923,14 @@ func (m *Repository) srcK8SFiles(g *dal.Migration, c MigrationCommon) (string, e
 	o += `
 ` + output
 	if err != nil {
-		return o, err
+		if exitError, ok := err.(*exec.ExitError); ok {
+			ec := exitError.ExitCode()
+			if ec != 1 {
+				return o, err
+			}
+		} else {
+			return o, err
+		}
 	}
 
 	// Move the tarball to Bnkr
@@ -965,7 +973,14 @@ func (m *Repository) srcSSHFiles(g *dal.Migration, c MigrationCommon) (string, e
 	output, err := utils.RunSshCommand(conn, "tar -czf /"+c.MigrationName+" -C "+g.SrcFilesPath+" .")
 
 	if err != nil {
-		return o, err
+		if v, ok := err.(*ssh.ExitError); ok {
+			ec := v.ExitStatus()
+			if ec != 1 {
+				return o, err
+			}
+		} else {
+			return o, err
+		}
 	}
 	o += `
 	` + output

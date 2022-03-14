@@ -855,7 +855,14 @@ func (m *Repository) FilesBackup(b *types.NewBackupDTO, sendMail bool) (*dal.Job
 	if o, err := tarball.CombinedOutput(); err != nil {
 		m.App.ErrorLog.Println(string(o))
 		m.App.ErrorLog.Println(err.Error())
-		return Repo.TerminateBackup(fmt.Sprintf("Failed to execute command: %s", "kubectl "+strings.Join(args, " ")), commons.FailedStatus, &commons, b, sendMail)
+		if exitError, ok := err.(*exec.ExitError); ok {
+			ec := exitError.ExitCode()
+			if ec != 1 {
+				return Repo.TerminateBackup(fmt.Sprintf("Failed to execute command: %s", "kubectl "+strings.Join(args, " ")), commons.FailedStatus, &commons, b, sendMail)
+			}
+		} else {
+			return Repo.TerminateBackup(fmt.Sprintf("Failed to get the exit error of executing the command: %s", "kubectl "+strings.Join(args, " ")), commons.FailedStatus, &commons, b, sendMail)
+		}
 	}
 
 	// Copy the tarball to current container
