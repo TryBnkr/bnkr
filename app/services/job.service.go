@@ -853,8 +853,8 @@ func (m *Repository) FilesBackup(b *types.NewBackupDTO, sendMail bool) (*dal.Job
 	tarball := exec.Command("kubectl", args...)
 
 	if o, err := tarball.CombinedOutput(); err != nil {
-		m.App.ErrorLog.Println(o)
-		m.App.ErrorLog.Println(err)
+		m.App.ErrorLog.Println(string(o))
+		m.App.ErrorLog.Println(err.Error())
 		return Repo.TerminateBackup(fmt.Sprintf("Failed to execute command: %s", "kubectl "+strings.Join(args, " ")), commons.FailedStatus, &commons, b, sendMail)
 	}
 
