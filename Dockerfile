@@ -22,11 +22,11 @@ RUN if [ $TARGETPLATFORM = "linux/amd64" ]; then curl https://fastdl.mongodb.org
 RUN apt install ./mongodb-tools.deb -y
 RUN rm ./mongodb-tools.deb
 
-# Install PostgresQL 13
+# Install PostgresQL 14
 RUN echo "deb http://apt.postgresql.org/pub/repos/apt focal-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 RUN wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
 RUN apt update
-RUN apt -y install postgresql-13
+RUN apt -y install postgresql-14
 
 RUN apt clean && rm -rf /var/lib/apt/lists/*
 
