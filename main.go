@@ -47,7 +47,7 @@ func main() {
 	session.Cookie.Secure = isProduction
 
 	app.Session = session
-	app.Version = "2.0.8"
+	app.Version = "2.0.9"
 
 	app.Cron = cron.New()
 
@@ -95,6 +95,8 @@ func main() {
 		setup()
 	}
 
+	startupCleanup()
+
 	app.CronIds = make(map[int]cron.EntryID)
 	runJobs()
 
@@ -116,6 +118,7 @@ func main() {
 	log.Fatal(err)
 }
 
+// runJobs on startup grabs the backups from the DB and schedule them according to their cron settings
 func runJobs() {
 	backups := &[]types.NewBackupDTO{}
 	if err := dal.FindAllBackups(backups); err != nil {
@@ -130,6 +133,17 @@ func runJobs() {
 	}
 
 	app.Cron.Start()
+}
+
+// startupCleanup if there is something queued/running when Bnkr shutted down we clean it up here
+func startupCleanup() {
+	// TODO clean tmp stuff like pods/archives
+	// TODO get running migrations and change their status to "fail"
+
+	// Flush the queues table
+	if _, err := dal.DeleteAllQueues(); err != nil {
+		panic(err)
+	}
 }
 
 func setup() {

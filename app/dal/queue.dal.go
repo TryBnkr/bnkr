@@ -51,3 +51,7 @@ func FindQueuesByObjectsIdsAndType(dest interface{}, ids interface{}, t string, 
 func DeleteQueue(queueIden interface{}) (sql.Result, error) {
 	return database.DB.Exec("delete from queues where id=$1", queueIden)
 }
+
+func DeleteAllQueues() (sql.Result, error) {
+	return database.DB.Exec("delete from queues")
+}
