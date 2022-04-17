@@ -5,12 +5,11 @@ The Kubernetes backup & migration solution that designed for human beings!
 ## Current Roadmap
 
 - [x] Support MongoDB backup & restore.
-- [ ] Accept kubeconfig
+- [ ] Accept kubeconfig(currently supported in the migrations)
 - [x] Support PostgreSQL backup & restore.
 - [x] Add migrations feature.
-- [ ] Support S3 compilable object storages.
-- [ ] Use Redis for cache and session.
-- [ ] Helm chart.
+- [ ] Support S3 compilable object storages not just S3.
+- [x] Helm chart.
 
 ## What I can do with Bnkr?
 
@@ -20,183 +19,27 @@ Bnkr goal is to backup & migrate only your valuable data inside Kubernetes clust
 
 Bnkr itself is a single binary application however it depends on some other tools and applications, for example, it uses `mysqldump` to backup MySQL databases so it is better to use Bnkr official image because you will guarantee that all the dependencies already exist.
 
-Here I'll mention everything you need to get Bnkr up and running in your cluster but of course, you can ignore any part that you already have or you don't need it.
+The easiest way to install BNKR is to use [the official Helm chart](https://github.com/TryBnkr/helm-charts/tree/main/charts/bnkr).
 
-First create a service account with:
+BNKR binary is basically a web server that listens on any port you specify to it, here are some of the environment variables that you can pass to BNKR:
 
-```yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: backup-sa
-  namespace: default
+```
+PORT="5000"
+USERNAME="John Doe"
+USERPASSWORD=StrongPassword
+USEREMAIL=me@example.com
+SETUP="true"
+PRODUCTION="true"
+DB_HOST=postgreshost
+DB_USER=bnkr
+DB_PASSWORD=StrongPassword
+DB_NAME=bnkr
+DB_PORT="5432"
+DB_TIMEZONE=Europe/Istanbul
+DB_SSLMODE=disable
 ```
 
-Create cluster admin:
-
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRoleBinding
-metadata:
-  name: backup-cluster-admin
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: cluster-admin
-subjects:
-- kind: ServiceAccount
-  name: backup-sa
-  namespace: default
-```
-
-Create a pvc for PostgreSQL:
-
-```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: postgres
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 5Gi
-```
-
-Create PostgreSQL StatefulSet with headless service(**don't forget to change the password!**):
-
-```yaml
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: postgres
-spec:
-  selector:
-    matchLabels:
-      app: postgres
-  serviceName: postgres
-  replicas: 1
-  template:
-    metadata:
-      labels:
-        app: postgres
-    spec:
-      containers:
-        - name: postgres
-          image: postgres:13.3-alpine
-          env:
-            - name: POSTGRES_PASSWORD
-              value: postgres
-          ports:
-            - name: postgres
-              containerPort: 5432
-          volumeMounts:
-            - name: data
-              mountPath: /data/db
-      volumes:
-        - name: data
-          persistentVolumeClaim:
-            claimName: postgres
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgres
-spec:
-  clusterIP: None
-  selector:
-    app: postgres
-  ports:
-    - name: db
-      protocol: TCP
-      port: 5432
-      targetPort: 5432
-```
-
-Next create the Bnkr deployment with NGINX Ingress:
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: bnkr
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: bnkr
-  template:
-    metadata:
-      labels:
-        app: bnkr
-    spec:
-      serviceAccountName: backup-sa
-      containers:
-        - name: bnkr
-          image: engrmth/bnkr
-          imagePullPolicy: Always
-          env:
-            - name: PORT
-              value: "5000"
-            - name: USERNAME
-              value: "John Doe"
-            - name: USERPASSWORD
-              value: password
-            - name: USEREMAIL
-              value: me@example.com
-            - name: SETUP
-              value: "true"
-            - name: PRODUCTION
-              value: "true"
-            - name: DB_HOST
-              value: postgres-0.postgres
-            - name: DB_USER
-              value: postgres
-            - name: DB_PASSWORD
-              value: postgres
-            - name: DB_NAME
-              value: postgres
-            - name: DB_PORT
-              value: "5432"
-            - name: DB_TIMEZONE
-              value: Europe/Istanbul
-            - name: DB_SSLMODE
-              value: disable
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: bnkr-clusterip-srv
-spec:
-  selector:
-    app: bnkr
-  ports:
-    - name: bnkr
-      protocol: TCP
-      port: 80
-      targetPort: 5000
----
-apiVersion: networking.k8s.io/v1beta1
-kind: Ingress
-metadata:
-  name: bnkr-ingress-srv
-  annotations:
-    kubernetes.io/ingress.class: nginx
-    nginx.ingress.kubernetes.io/use-regex: 'true'
-    nginx.ingress.kubernetes.io/proxy-body-size: '0'
-    nginx.ingress.kubernetes.io/proxy-read-timeout: '600'
-    nginx.ingress.kubernetes.io/proxy-send-timeout: '600'
-spec:
-  rules:
-    - host: bnkr.example.com
-      http:
-        paths:
-          - path: /
-            backend:
-              serviceName: bnkr-clusterip-srv
-              servicePort: 80
-```
+You can run BNKR as deployment and pass a service account to it with enough capabilities that allow it for example to access the data that it will backup.
 
 ## Troubleshooting
 
@@ -204,6 +47,6 @@ In almost all the cases that we faced most problems came from incorrect permissi
 
 ## License
 
-Copyright (c) 2021 [Mohammed Al-Mahdawi](https://al-mahdawi.is/)
+Copyright (c) 2022 [Mohammed Al-Mahdawi](https://al-mahdawi.is/)
 
 Licensed under the **MIT** license.
