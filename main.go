@@ -47,7 +47,7 @@ func main() {
 	session.Cookie.Secure = isProduction
 
 	app.Session = session
-	app.Version = "2.0.9"
+	app.Version = "2.1.0"
 
 	app.Cron = cron.New()
 
@@ -127,9 +127,11 @@ func runJobs() {
 
 	for _, b := range *backups {
 		rBackup := b
-		cron := render.ConstructCron(&rBackup)
-		cronId, _ := app.Cron.AddFunc("CRON_TZ="+rBackup.Timezone+" "+cron, func() { services.Repo.CreateNewJob(&rBackup, false) })
-		app.CronIds[rBackup.ID] = cronId
+		if rBackup.Enable {
+			cron := render.ConstructCron(&rBackup)
+			cronId, _ := app.Cron.AddFunc("CRON_TZ="+rBackup.Timezone+" "+cron, func() { services.Repo.CreateNewJob(&rBackup, false) })
+			app.CronIds[rBackup.ID] = cronId
+		}
 	}
 
 	app.Cron.Start()

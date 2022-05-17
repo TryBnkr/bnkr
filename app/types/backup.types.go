@@ -10,6 +10,7 @@ type NewBackupDTO struct {
 	UpdatedAt        sql.NullTime   `db:"updated_at"`
 	DeletedAt        sql.NullTime   `db:"deleted_at"`
 	Name             string         `db:"name"`
+	Enable           bool           `db:"enable"`
 	Frequency        string         `db:"frequency"`
 	Timezone         string         `db:"timezone"`
 	CustomFrequency  string         `db:"custom_frequency"`

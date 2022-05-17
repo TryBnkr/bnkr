@@ -11,6 +11,19 @@
 <form x-data="newBackup()" action="/backups/{{with index .Data "id"}}{{.}}{{else}}new{{end}}" method="post" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
     <div class="mb-3">
+        <div class="form-check">
+            <input name="backupEnable" class="form-check-input {{if .Form.Errors.Get "backupEnable"}} is-invalid {{else if
+                .Form.Has "backupEnable" }} is-valid {{end}}" type="checkbox" value="true" id="exampleInputEnable1"
+                aria-describedby="enableHelp" {{if $res.Enable}}checked{{end}}>
+            <label for="exampleInputEnable1" class="form-check-label">Enable</label>
+        </div>
+        {{with .Form.Errors.Get "backupEnable"}}
+        <div class="invalid-feedback">
+            {{.}}
+        </div>
+        {{end}}
+    </div>
+    <div class="mb-3">
         <label for="exampleInputBackupName1" class="form-label">Name</label>
         <input name="backupName" class="form-control {{if .Form.Errors.Get "backupName"}} is-invalid {{else if
             .Form.Has "backupName" }} is-valid {{end}}" value="{{$res.Name}}" id="exampleInputBackupName1"

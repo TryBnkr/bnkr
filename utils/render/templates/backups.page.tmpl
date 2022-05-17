@@ -13,7 +13,8 @@
 <table class="table table-hover align-middle">
   <thead>
     <tr>
-      <th scope="col">#</th>
+      <th scope="col">ID</th>
+      <th scope="col"></th>
       <th scope="col">Backup</th>
       <th scope="col">Frequency</th>
       <th scope="col">Timezone</th>
@@ -28,6 +29,14 @@
     <template x-if="!deletedItems.includes({{.ID}})">
       <tr>
         <th scope="row">{{.ID}}</th>
+        <td class="{{if .Enable}}text-success{{else}}text-danger{{end}}">
+          <span class="d-flex align-items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-power" viewBox="0 0 16 16">
+              <path d="M7.5 1v7h1V1h-1z"/>
+              <path d="M3 8.812a4.999 4.999 0 0 1 2.578-4.375l-.485-.874A6 6 0 1 0 11 3.616l-.501.865A5 5 0 1 1 3 8.812z"/>
+            </svg>
+          </span>
+        </td>
         <td><a href="/jobs/backups/{{.ID}}">{{.Name}}</a></td>
         {{$next := formatDate (index $nextOcc .ID) "2006-01-02T15:04:05-0700"}}
         {{if eq .Frequency "custom"}}<td data-bs-toggle="tooltip" :data-bs-original-title="getNextOccurrence('{{$next}}', {{.ID}})" :title="getTime('{{$next}}')">Custom (<code :title="cronstrue.toString('{{.CustomFrequency}}')">{{.CustomFrequency}}</code>)</td>{{else if eq .Frequency "@hourly"}}<td data-bs-toggle="tooltip" :data-bs-original-title="getNextOccurrence('{{$next}}', {{.ID}})" :title="getTime('{{$next}}')">Hourly</td>{{else}}<td data-bs-toggle="tooltip" :data-bs-original-title="getNextOccurrence('{{$next}}', {{.ID}})" :title="getTime('{{$next}}')" x-html="cronstrue.toString('{{constructCron .}}')"></td>{{end}}
@@ -114,8 +123,10 @@
         }
       },
       getNextOccurrence(_default, id){
-        if (this.nextOcc.hasOwnProperty(id)) {
+        if (this.nextOcc.hasOwnProperty(id) && this.nextOcc[id] != '0001-01-01T00:00:00Z') {
           return this.getTime(this.nextOcc[id])
+        } else if (this.nextOcc.hasOwnProperty(id) && this.nextOcc[id] == '0001-01-01T00:00:00Z') {
+          return ''
         }
         return this.getTime(_default)
       },

@@ -165,6 +165,7 @@ func (m *Repository) CloneBackup(w http.ResponseWriter, r *http.Request) {
 	nb := dal.Backup(*backup)
 
 	nb.Name = "Clone of " + nb.Name
+	nb.Enable = false
 	nb.CreatedAt = sql.NullTime{
 		Time:  time.Now(),
 		Valid: true,
@@ -183,7 +184,7 @@ func (m *Repository) CloneBackup(w http.ResponseWriter, r *http.Request) {
 	m.App.Session.Put(r.Context(), "flash", "Clone created!")
 	// Insert cron
 	// TODO check error of UpdateOrInsertCron
-	m.UpdateOrInsertCron(nb.ID, "create")
+	m.UpdateOrInsertCron(nb.ID, "create", true, false)
 
 	out, _ := json.Marshal(&types.MsgResponse{
 		Message: "Clone successfully created!",
@@ -235,7 +236,7 @@ func (m *Repository) DeleteBackup(w http.ResponseWriter, r *http.Request) {
 	w.Write(out)
 }
 
-func (m *Repository) UpdateOrInsertCron(id int, typ string) error {
+func (m *Repository) UpdateOrInsertCron(id int, typ string, setEnable bool, enable bool) error {
 	if typ == "update" {
 		m.App.Cron.Remove(m.App.CronIds[id])
 		delete(m.App.CronIds, id)
@@ -246,10 +247,12 @@ func (m *Repository) UpdateOrInsertCron(id int, typ string) error {
 		return err
 	}
 
-	cron := render.ConstructCron(backup)
-	cronId, _ := m.App.Cron.AddFunc("CRON_TZ="+backup.Timezone+" "+cron, func() { m.CreateNewJob(backup, false) })
+	if (backup.Enable && !setEnable) || (setEnable && enable) {
+		cron := render.ConstructCron(backup)
+		cronId, _ := m.App.Cron.AddFunc("CRON_TZ="+backup.Timezone+" "+cron, func() { m.CreateNewJob(backup, false) })
 
-	m.App.CronIds[backup.ID] = cronId
+		m.App.CronIds[backup.ID] = cronId
+	}
 
 	return nil
 }
@@ -266,6 +269,7 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 	form := forms.New(r.PostForm)
 
 	backupName := r.Form.Get("backupName")
+	enable, _ := strconv.ParseBool(r.Form.Get("backupEnable"))
 	frequency := r.Form.Get("frequency")
 	timezone := r.Form.Get("timezone")
 	backupTime := r.Form.Get("time")
@@ -300,6 +304,7 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 
 	values := types.NewBackupDTO{
 		Name:             backupName,
+		Enable:           enable,
 		Frequency:        frequency,
 		CustomFrequency:  customFrequency,
 		Timezone:         timezone,
@@ -379,6 +384,7 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 
 	d := &dal.Backup{
 		Name:             values.Name,
+		Enable:           values.Enable,
 		Frequency:        values.Frequency,
 		CustomFrequency:  values.CustomFrequency,
 		Timezone:         values.Timezone,
@@ -419,7 +425,7 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 		m.App.Session.Put(r.Context(), "flash", "Backup updated")
 		// Update cron
 		// TODO check error of UpdateOrInsertCron
-		m.UpdateOrInsertCron(id, "update")
+		m.UpdateOrInsertCron(id, "update", false, false)
 	} else {
 		d.UpdatedAt = sql.NullTime{
 			Time:  time.Now(),
@@ -437,7 +443,7 @@ func (m *Repository) PostNewBackup(w http.ResponseWriter, r *http.Request) {
 		m.App.Session.Put(r.Context(), "flash", "Backup created")
 		// Insert cron
 		// TODO check error of UpdateOrInsertCron
-		m.UpdateOrInsertCron(d.ID, "create")
+		m.UpdateOrInsertCron(d.ID, "create", false, false)
 	}
 
 	http.Redirect(w, r, "/backups", http.StatusSeeOther)
